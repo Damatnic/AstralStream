@@ -5,16 +5,20 @@ import androidx.room.Room
 import com.astralplayer.nextplayer.data.database.AstralVuDatabase
 import com.astralplayer.nextplayer.data.repository.SettingsRepository
 import com.astralplayer.nextplayer.data.repository.SettingsRepositoryImpl
+import com.astralplayer.nextplayer.utils.CodecManager
 import com.google.firebase.FirebaseApp
-// import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.android.HiltAndroidApp
 
-// @HiltAndroidApp // Temporarily disabled
+@HiltAndroidApp
 class AstralVuApplication : Application() {
     
     lateinit var database: AstralVuDatabase
         private set
     
     lateinit var settingsRepository: SettingsRepository
+        private set
+        
+    lateinit var codecManager: CodecManager
         private set
     
     override fun onCreate() {
@@ -35,5 +39,10 @@ class AstralVuApplication : Application() {
         
         // Initialize settings repository
         settingsRepository = SettingsRepositoryImpl(this)
+        
+        // Initialize codec manager
+        codecManager = CodecManager(this).apply {
+            initializeCodecs()
+        }
     }
 }

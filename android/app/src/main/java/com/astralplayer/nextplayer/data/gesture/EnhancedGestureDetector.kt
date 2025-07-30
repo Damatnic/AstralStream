@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.astralplayer.nextplayer.data.*
+import com.astralplayer.nextplayer.data.SeekDirection
 import kotlinx.coroutines.*
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -350,7 +351,8 @@ class EnhancedGestureDetector(
         if (horizontalComponent > 0.7f && settings.seeking.isEnabled) {
             // Final seek adjustment based on total drag
             val seekTime = (totalDrag.x / size.width.toFloat()) * 60000 * settings.seeking.sensitivity
-            gestureManager._lastGestureAction.value = GestureAction.Seek(seekTime.toLong(), velocity.x)
+            val direction = if (seekTime > 0) SeekDirection.FORWARD else SeekDirection.BACKWARD
+            gestureManager._lastGestureAction.value = GestureAction.Seek(kotlin.math.abs(seekTime.toLong()), direction)
         }
     }
     

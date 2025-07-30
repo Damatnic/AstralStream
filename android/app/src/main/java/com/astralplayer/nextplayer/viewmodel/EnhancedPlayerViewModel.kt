@@ -230,10 +230,15 @@ class EnhancedPlayerViewModel(
      * Handle double tap seek
      */
     private fun handleDoubleTapSeek(amount: Long, side: TouchSide) {
+        val position = when (side) {
+            TouchSide.LEFT -> 0.2f
+            TouchSide.RIGHT -> 0.8f
+            TouchSide.CENTER -> 0.5f
+        }
         val action = GestureAction.DoubleTapSeek(
             forward = side == TouchSide.RIGHT,
             amount = amount,
-            side = side
+            position = position
         )
         playerRepository.handleGestureAction(action)
         hapticManager.playHaptic(HapticFeedbackManager.HapticPattern.DOUBLE_TAP)
@@ -255,15 +260,24 @@ class EnhancedPlayerViewModel(
     /**
      * Toggle play/pause
      */
-    private fun togglePlayPause() {
+    fun togglePlayPause() {
         playerRepository.handleGestureAction(GestureAction.TogglePlayPause)
         hapticManager.playHaptic(HapticFeedbackManager.HapticPattern.TAP)
     }
     
     /**
+     * Set playback speed
+     */
+    fun setPlaybackSpeed(speed: Float) {
+        viewModelScope.launch {
+            playerRepository.setPlaybackSpeed(speed)
+        }
+    }
+    
+    /**
      * Seek relative to current position
      */
-    private fun seekRelative(deltaMs: Long) {
+    fun seekRelative(deltaMs: Long) {
         viewModelScope.launch {
             val currentPos = currentPosition.value
             val dur = duration.value

@@ -123,7 +123,7 @@ fun RecentFilesScreen(
             )
         } else if (recentFiles.isEmpty()) {
             NoRecentFilesState(
-                onPlayTestVideo = {
+                onPlayExampleVideo = {
                     val intent = Intent(context, VideoPlayerActivity::class.java).apply {
                         data = Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
                         putExtra("video_title", "Big Buck Bunny")

@@ -116,19 +116,7 @@ enum class GestureType(val priority: Int) {
     SINGLE_TAP(1)
 }
 
-enum class TouchSide { LEFT, RIGHT, CENTER }
-enum class SeekDirection { FORWARD, BACKWARD }
-
-sealed class GestureAction {
-    data class Seek(val deltaMs: Long, val velocity: Float = 0f) : GestureAction()
-    data class VolumeChange(val delta: Float, val side: TouchSide) : GestureAction()
-    data class BrightnessChange(val delta: Float, val side: TouchSide) : GestureAction()
-    data class DoubleTapSeek(val forward: Boolean, val amount: Long, val side: TouchSide) : GestureAction()
-    object TogglePlayPause : GestureAction()
-    data class LongPressSeek(val speed: Float, val direction: SeekDirection) : GestureAction()
-    data class PinchZoom(val scale: Float, val center: Offset) : GestureAction()
-    data class GestureConflict(val conflictingGestures: List<GestureType>) : GestureAction()
-}
+// Using classes from GestureAction.kt to avoid duplicates
 
 // Gesture detection data classes
 data class DetectedGesture(
@@ -302,7 +290,18 @@ class EnhancedGestureManager constructor() {
             is GestureResolution.Conflict -> {
                 // Handle conflict by notifying about conflicting gestures
                 _lastGestureAction.value = GestureAction.GestureConflict(
-                    resolution.conflictingGestures.map { it.type }
+                    resolution.conflictingGestures.map { gesture ->
+                        // Convert to appropriate GestureAction based on gesture type
+                        when (gesture.type) {
+                            GestureType.HORIZONTAL_SEEK -> GestureAction.Seek(0L, SeekDirection.FORWARD)
+                            GestureType.VERTICAL_VOLUME -> GestureAction.VolumeChange(0f)
+                            GestureType.VERTICAL_BRIGHTNESS -> GestureAction.BrightnessChange(0f)
+                            GestureType.DOUBLE_TAP -> GestureAction.DoubleTapSeek(forward = true)
+                            GestureType.LONG_PRESS -> GestureAction.LongPressSeek(SeekDirection.FORWARD)
+                            GestureType.PINCH_ZOOM -> GestureAction.PinchZoom(1f, 0f, 0f)
+                            GestureType.SINGLE_TAP -> GestureAction.TogglePlayPause
+                        }
+                    }
                 )
             }
             is GestureResolution.None -> {
@@ -388,7 +387,8 @@ class GestureManager constructor() {
         
         // Convert drag amount to seek time (in milliseconds)
         val seekDelta = (dragAmount / screenWidth) * 30000 * settings.seekSensitivity
-        enhancedManager._lastGestureAction.value = GestureAction.Seek(seekDelta.toLong())
+        val direction = if (seekDelta > 0) SeekDirection.FORWARD else SeekDirection.BACKWARD
+        enhancedManager._lastGestureAction.value = GestureAction.Seek(seekDelta.toLong(), direction)
     }
     
     fun handleVerticalDrag(dragAmount: Float, screenHeight: Float, isLeftSide: Boolean) {
@@ -397,13 +397,11 @@ class GestureManager constructor() {
         if (isLeftSide && settings.verticalBrightnessEnabled) {
             // Left side controls brightness
             val brightnessDelta = -(dragAmount / screenHeight) * settings.brightnessSensitivity
-            val side = if (isLeftSide) TouchSide.LEFT else TouchSide.RIGHT
-            enhancedManager._lastGestureAction.value = GestureAction.BrightnessChange(brightnessDelta, side)
+            enhancedManager._lastGestureAction.value = GestureAction.BrightnessChange(brightnessDelta)
         } else if (!isLeftSide && settings.verticalVolumeEnabled) {
             // Right side controls volume
             val volumeDelta = -(dragAmount / screenHeight) * settings.volumeSensitivity
-            val side = if (isLeftSide) TouchSide.LEFT else TouchSide.RIGHT
-            enhancedManager._lastGestureAction.value = GestureAction.VolumeChange(volumeDelta, side)
+            enhancedManager._lastGestureAction.value = GestureAction.VolumeChange(volumeDelta)
         }
     }
     
@@ -416,11 +414,11 @@ class GestureManager constructor() {
         if (!settings.doubleTapSeekEnabled) return
         
         val amount = settings.doubleTapSeekAmount
-        val side = if (isRightSide) TouchSide.RIGHT else TouchSide.LEFT
+        val position = if (isRightSide) 0.75f else 0.25f // Position on screen (0.0 = left, 1.0 = right)
         enhancedManager._lastGestureAction.value = GestureAction.DoubleTapSeek(
             forward = isRightSide,
             amount = amount,
-            side = side
+            position = position
         )
     }
     
@@ -429,7 +427,7 @@ class GestureManager constructor() {
         if (!settings.longPressSpeedEnabled) return
         
         val direction = if (forward) SeekDirection.FORWARD else SeekDirection.BACKWARD
-        enhancedManager._lastGestureAction.value = GestureAction.LongPressSeek(speed, direction)
+        enhancedManager._lastGestureAction.value = GestureAction.LongPressSeek(direction, speed)
     }
     
     fun clearLastAction() {

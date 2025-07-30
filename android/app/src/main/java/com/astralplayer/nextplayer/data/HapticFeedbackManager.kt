@@ -121,7 +121,9 @@ class HapticFeedbackManager(private val context: Context) {
             is GestureAction.TogglePlayPause -> playPattern(HapticPattern.TAP)
             is GestureAction.LongPressSeek -> playPattern(HapticPattern.LONG_PRESS_START)
             is GestureAction.PinchZoom -> playPattern(HapticPattern.ZOOM_FEEDBACK)
+            is GestureAction.SwipeNavigation -> playPattern(HapticPattern.TAP)
             is GestureAction.GestureConflict -> playPattern(HapticPattern.GESTURE_CONFLICT)
+            is GestureAction.Custom -> playPattern(HapticPattern.TAP)
         }
     }
     

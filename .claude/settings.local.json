@@ -36,7 +36,11 @@
       "Bash(git branch:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(touch:*)",
+      "Bash(timeout:*)",
+      "Bash(echo \"Build result: $?\")",
+      "Bash(echo:*)"
     ],
     "deny": []
   }

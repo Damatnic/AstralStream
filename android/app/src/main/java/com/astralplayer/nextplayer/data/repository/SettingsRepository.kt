@@ -145,6 +145,28 @@ interface SettingsRepository {
     fun getAISubtitleGenerationEnabled(): Flow<Boolean>
     suspend fun setAISubtitleGenerationEnabled(enabled: Boolean)
     
+    // Enhanced codec support
+    fun getEnhancedCodecSupport(): Flow<Boolean>
+    suspend fun setEnhancedCodecSupport(enabled: Boolean)
+    
+    // Full screen mode
+    fun getFullScreenMode(): Flow<Boolean>
+    suspend fun setFullScreenMode(enabled: Boolean)
+    
+    // Network settings
+    fun getNetworkBuffering(): Flow<Boolean>
+    suspend fun setNetworkBuffering(enabled: Boolean)
+    
+    fun getAdaptiveStreaming(): Flow<Boolean>
+    suspend fun setAdaptiveStreaming(enabled: Boolean)
+    
+    // DTS and AC3 decoding
+    fun getDtsDecodingEnabled(): Flow<Boolean>
+    suspend fun setDtsDecodingEnabled(enabled: Boolean)
+    
+    fun getAc3DecodingEnabled(): Flow<Boolean>
+    suspend fun setAc3DecodingEnabled(enabled: Boolean)
+    
     // Data management
     suspend fun clearAllData()
 }
@@ -215,6 +237,14 @@ class SettingsRepositoryImpl(
         
         // AI Features keys
         private val AI_SUBTITLE_GENERATION_ENABLED = booleanPreferencesKey("ai_subtitle_generation_enabled")
+        
+        // Enhanced codec support keys
+        private val ENHANCED_CODEC_SUPPORT = booleanPreferencesKey("enhanced_codec_support")
+        private val FULL_SCREEN_MODE = booleanPreferencesKey("full_screen_mode")
+        private val NETWORK_BUFFERING = booleanPreferencesKey("network_buffering")
+        private val ADAPTIVE_STREAMING = booleanPreferencesKey("adaptive_streaming")
+        private val DTS_DECODING_ENABLED = booleanPreferencesKey("dts_decoding_enabled")
+        private val AC3_DECODING_ENABLED = booleanPreferencesKey("ac3_decoding_enabled")
     }
     
     private val dataStore = context.dataStore
@@ -648,6 +678,70 @@ class SettingsRepositoryImpl(
     override suspend fun setAISubtitleGenerationEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[AI_SUBTITLE_GENERATION_ENABLED] = enabled
+        }
+    }
+    
+    // Enhanced codec support
+    override fun getEnhancedCodecSupport(): Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[ENHANCED_CODEC_SUPPORT] ?: false }
+        .handleErrors(false)
+    
+    override suspend fun setEnhancedCodecSupport(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[ENHANCED_CODEC_SUPPORT] = enabled
+        }
+    }
+    
+    // Full screen mode
+    override fun getFullScreenMode(): Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[FULL_SCREEN_MODE] ?: true }
+        .handleErrors(true)
+    
+    override suspend fun setFullScreenMode(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[FULL_SCREEN_MODE] = enabled
+        }
+    }
+    
+    // Network settings
+    override fun getNetworkBuffering(): Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[NETWORK_BUFFERING] ?: true }
+        .handleErrors(true)
+    
+    override suspend fun setNetworkBuffering(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[NETWORK_BUFFERING] = enabled
+        }
+    }
+    
+    override fun getAdaptiveStreaming(): Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[ADAPTIVE_STREAMING] ?: true }
+        .handleErrors(true)
+    
+    override suspend fun setAdaptiveStreaming(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[ADAPTIVE_STREAMING] = enabled
+        }
+    }
+    
+    // DTS and AC3 decoding
+    override fun getDtsDecodingEnabled(): Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[DTS_DECODING_ENABLED] ?: false }
+        .handleErrors(false)
+    
+    override suspend fun setDtsDecodingEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[DTS_DECODING_ENABLED] = enabled
+        }
+    }
+    
+    override fun getAc3DecodingEnabled(): Flow<Boolean> = dataStore.data
+        .map { preferences -> preferences[AC3_DECODING_ENABLED] ?: false }
+        .handleErrors(false)
+    
+    override suspend fun setAc3DecodingEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AC3_DECODING_ENABLED] = enabled
         }
     }
     

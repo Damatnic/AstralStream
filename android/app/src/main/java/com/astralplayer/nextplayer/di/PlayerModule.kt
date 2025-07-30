@@ -1,250 +1,136 @@
 package com.astralplayer.nextplayer.di
 
 import android.content.Context
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.*
-import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
-import androidx.media3.datasource.cache.SimpleCache
-import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.*
-import androidx.media3.exoplayer.audio.AudioRendererEventListener
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
-import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.text.TextRenderer
-import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
-import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
-import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
-import androidx.media3.exoplayer.video.VideoRendererEventListener
-import okhttp3.OkHttpClient
-import java.io.File
+import com.astralplayer.nextplayer.data.PlayerRepository
+import com.astralplayer.nextplayer.data.PlayerRepositoryImpl
+import com.astralplayer.nextplayer.utils.CodecManager
 
-// Enhanced PlayerModule with comprehensive format support
 object PlayerModule {
     
-    private const val CACHE_SIZE = 100 * 1024 * 1024L // 100MB cache
-    private const val USER_AGENT = "Astral-Vu/1.0 (Android)"
-    
-    @Volatile
-    private var simpleCache: SimpleCache? = null
-    
-    @UnstableApi
-    fun createExoPlayer(context: Context): ExoPlayer {
-        return ExoPlayer.Builder(context)
-            .setRenderersFactory(createRenderersFactory(context))
-            .setTrackSelector(createTrackSelector(context))
-            .setLoadControl(createLoadControl())
-            .setMediaSourceFactory(createMediaSourceFactory(context))
-            .setBandwidthMeter(createBandwidthMeter(context))
-            .setSeekBackIncrementMs(10000) // 10 seconds
-            .setSeekForwardIncrementMs(30000) // 30 seconds
-            .build()
+    fun provideBandwidthMeter(context: Context): DefaultBandwidthMeter {
+        return DefaultBandwidthMeter.getSingletonInstance(context)
     }
     
-    @UnstableApi
-    private fun createRenderersFactory(context: Context): RenderersFactory {
-        return object : DefaultRenderersFactory(context) {
-            override fun buildVideoRenderers(
-                context: Context,
-                extensionRendererMode: Int,
-                mediaCodecSelector: MediaCodecSelector,
-                enableDecoderFallback: Boolean,
-                eventHandler: android.os.Handler,
-                eventListener: VideoRendererEventListener,
-                allowedVideoJoiningTimeMs: Long,
-                out: java.util.ArrayList<Renderer>
-            ) {
-                // Add MediaCodec video renderer with enhanced configuration
-                out.add(
-                    MediaCodecVideoRenderer(
-                        context,
-                        mediaCodecSelector,
-                        allowedVideoJoiningTimeMs,
-                        enableDecoderFallback,
-                        eventHandler,
-                        eventListener,
-                        MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY
-                    )
-                )
-                
-                // Add other video renderers
-                super.buildVideoRenderers(
-                    context,
-                    extensionRendererMode,
-                    mediaCodecSelector,
-                    enableDecoderFallback,
-                    eventHandler,
-                    eventListener,
-                    allowedVideoJoiningTimeMs,
-                    out
-                )
-            }
-            
-            override fun buildAudioRenderers(
-                context: Context,
-                extensionRendererMode: Int,
-                mediaCodecSelector: MediaCodecSelector,
-                enableDecoderFallback: Boolean,
-                audioSink: androidx.media3.exoplayer.audio.AudioSink,
-                eventHandler: android.os.Handler,
-                eventListener: AudioRendererEventListener,
-                out: java.util.ArrayList<Renderer>
-            ) {
-                // Add MediaCodec audio renderer with enhanced audio sink
-                out.add(
-                    MediaCodecAudioRenderer(
-                        context,
-                        mediaCodecSelector,
-                        enableDecoderFallback,
-                        eventHandler,
-                        eventListener,
-                        DefaultAudioSink.Builder()
-                            .setEnableFloatOutput(false)
-                            .setEnableAudioTrackPlaybackParams(false)
-                            .build()
-                    )
-                )
-                
-                // Add other audio renderers
-                super.buildAudioRenderers(
-                    context,
-                    extensionRendererMode,
-                    mediaCodecSelector,
-                    enableDecoderFallback,
-                    audioSink,
-                    eventHandler,
-                    eventListener,
-                    out
-                )
-            }
-            
-            override fun buildTextRenderers(
-                context: Context,
-                output: androidx.media3.exoplayer.text.TextOutput,
-                outputLooper: android.os.Looper,
-                extensionRendererMode: Int,
-                out: java.util.ArrayList<Renderer>
-            ) {
-                // Add text renderer for subtitles
-                out.add(TextRenderer(output, outputLooper))
-                
-                super.buildTextRenderers(context, output, outputLooper, extensionRendererMode, out)
-            }
-        }
-    }
-    
-    @UnstableApi
-    private fun createTrackSelector(context: Context): DefaultTrackSelector {
-        return DefaultTrackSelector(context, AdaptiveTrackSelection.Factory()).apply {
+    fun provideTrackSelector(context: Context): DefaultTrackSelector {
+        return DefaultTrackSelector(context).apply {
             setParameters(
                 buildUponParameters()
-                    // Video quality settings
-                    .setMaxVideoSizeSd() // Start with SD, can be upgraded
-                    .setMaxVideoBitrate(2000000) // 2 Mbps max initially
-                    .setMinVideoSize(480, 360) // Minimum resolution
-                    .setViewportSizeToPhysicalDisplaySize(context, true)
-                    
-                    // Audio settings
-                    .setPreferredAudioLanguages("en", "und") // English preferred, undefined as fallback
-                    .setMaxAudioBitrate(128000) // 128 kbps max
-                    .setMaxAudioChannelCount(2) // Stereo max initially
-                    
-                    // Text/subtitle settings
-                    .setPreferredTextLanguages("en", "und")
-                    .setSelectUndeterminedTextLanguage(true)
-                    
-                    // Performance settings
                     .setForceLowestBitrate(false)
-                    .setForceHighestSupportedBitrate(false)
-                    .setTunnelingEnabled(false) // Disable tunneling for compatibility
-                    
+                    .setExceedVideoConstraintsIfNecessary(true)
+                    .setExceedAudioConstraintsIfNecessary(true)
+                    .setTunnelingEnabled(true)
                     .build()
             )
         }
     }
     
-    @UnstableApi
-    private fun createLoadControl(): LoadControl {
+    fun provideLoadControl(): DefaultLoadControl {
         return DefaultLoadControl.Builder()
-            // Buffer settings for smooth playback
             .setBufferDurationsMs(
-                15000, // Min buffer (15 seconds)
-                50000, // Max buffer (50 seconds)
-                2500,  // Buffer for playback (2.5 seconds)
-                5000   // Buffer for playback after rebuffer (5 seconds)
+                /* minBufferMs = */ 50000,  // 50 seconds minimum buffer
+                /* maxBufferMs = */ 300000, // 5 minutes maximum buffer
+                /* bufferForPlaybackMs = */ 2500,  // 2.5 seconds to start playback
+                /* bufferForPlaybackAfterRebufferMs = */ 5000  // 5 seconds after rebuffer
             )
-            .setTargetBufferBytes(C.LENGTH_UNSET) // Use default
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setBackBuffer(20000, true) // 20 second back buffer, retain after rebuffer
             .build()
     }
     
-    @UnstableApi
-    private fun createMediaSourceFactory(context: Context): DefaultMediaSourceFactory {
-        val dataSourceFactory = createDataSourceFactory(context)
-        
-        return DefaultMediaSourceFactory(context)
-            .setDataSourceFactory(dataSourceFactory)
-    }
-    
-    @UnstableApi
-    private fun createDataSourceFactory(context: Context): DataSource.Factory {
-        // Create OkHttp client with comprehensive configuration
-        val okHttpClient = OkHttpClient.Builder()
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build()
-        
-        // Create HTTP data source factory
-        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-            .setUserAgent(USER_AGENT)
-        
-        // Create default data source factory (handles file://, content://, etc.)
-        val defaultDataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
-        
-        // Add caching layer
-        val cache = getCache(context)
-        return CacheDataSource.Factory()
-            .setCache(cache)
-            .setUpstreamDataSourceFactory(defaultDataSourceFactory)
-            .setCacheWriteDataSinkFactory(null) // Use default
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-    }
-    
-    private fun createBandwidthMeter(context: Context): DefaultBandwidthMeter {
-        return DefaultBandwidthMeter.Builder(context)
-            .setInitialBitrateEstimate(1000000L) // 1 Mbps initial estimate
+    fun provideAudioAttributes(): AudioAttributes {
+        return AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
     }
     
-    @Synchronized
-    private fun getCache(context: Context): SimpleCache {
-        if (simpleCache == null) {
-            val cacheDir = File(context.cacheDir, "exoplayer_cache")
-            val evictor = LeastRecentlyUsedCacheEvictor(CACHE_SIZE)
-            simpleCache = SimpleCache(cacheDir, evictor)
+    fun provideCodecManager(context: Context): CodecManager {
+        return CodecManager(context).apply {
+            initializeCodecs()
         }
-        return simpleCache!!
     }
     
-    fun createPlayerRepository(exoPlayer: ExoPlayer, context: Context): com.astralplayer.nextplayer.data.PlayerRepository {
-        return com.astralplayer.nextplayer.data.PlayerRepositoryImpl(exoPlayer, context)
+    fun provideExoPlayer(
+        context: Context,
+        codecManager: CodecManager,
+        trackSelector: DefaultTrackSelector,
+        loadControl: DefaultLoadControl,
+        audioAttributes: AudioAttributes,
+        bandwidthMeter: DefaultBandwidthMeter
+    ): ExoPlayer {
+        return codecManager.applyOptimizations(
+            ExoPlayer.Builder(context)
+                .setTrackSelector(trackSelector)
+                .setLoadControl(loadControl)
+                .setBandwidthMeter(bandwidthMeter)
+        )
+        .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
+        .setHandleAudioBecomingNoisy(true)
+        .setWakeMode(C.WAKE_MODE_NETWORK)
+        .setPauseAtEndOfMediaItems(false)
+        .setSkipSilenceEnabled(false)
+        .build()
     }
     
-    fun releaseCache() {
-        simpleCache?.release()
-        simpleCache = null
+    fun providePlayerRepository(
+        exoPlayer: ExoPlayer,
+        context: Context
+    ): PlayerRepository {
+        return PlayerRepositoryImpl(exoPlayer, context)
     }
     
-    // Configuration constants
-    private const val MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY = 5
+    // Static methods for compatibility with existing code
+        fun createExoPlayer(context: Context, codecManager: CodecManager? = null): ExoPlayer {
+            val manager = codecManager ?: CodecManager(context).apply { initializeCodecs() }
+            
+            val trackSelector = DefaultTrackSelector(context).apply {
+                setParameters(
+                    buildUponParameters()
+                        .setForceLowestBitrate(false)
+                        .setExceedVideoConstraintsIfNecessary(true)
+                        .setExceedAudioConstraintsIfNecessary(true)
+                        .setTunnelingEnabled(true)
+                        .build()
+                )
+            }
+            
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    50000,  // 50 seconds minimum buffer
+                    300000, // 5 minutes maximum buffer
+                    2500,   // 2.5 seconds to start playback
+                    5000    // 5 seconds after rebuffer
+                )
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
+            
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build()
+            
+            val bandwidthMeter = DefaultBandwidthMeter.getSingletonInstance(context)
+            
+            return manager.applyOptimizations(
+                ExoPlayer.Builder(context)
+                    .setTrackSelector(trackSelector)
+                    .setLoadControl(loadControl)
+                    .setBandwidthMeter(bandwidthMeter)
+            )
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setPauseAtEndOfMediaItems(false)
+            .setSkipSilenceEnabled(false)
+            .build()
+        }
+        
+        fun createPlayerRepository(exoPlayer: ExoPlayer, context: Context): PlayerRepository {
+            return PlayerRepositoryImpl(exoPlayer, context)
+        }
 }

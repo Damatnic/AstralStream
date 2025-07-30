@@ -97,7 +97,7 @@ class VerticalGestureHandler(
             window.attributes = layoutParams
         }
         
-        return GestureAction.BrightnessChange(brightnessDelta, side)
+        return GestureAction.BrightnessChange(brightnessDelta)
     }
     
     /**
@@ -118,7 +118,7 @@ class VerticalGestureHandler(
             )
         }
         
-        return GestureAction.VolumeChange(volumeDelta, side)
+        return GestureAction.VolumeChange(volumeDelta)
     }
     
     /**

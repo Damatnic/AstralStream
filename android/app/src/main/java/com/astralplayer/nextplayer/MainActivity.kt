@@ -36,8 +36,6 @@ import com.astralplayer.nextplayer.ui.components.LoadingState
 import com.astralplayer.nextplayer.ui.components.NoVideosFoundState
 import com.astralplayer.nextplayer.ui.components.ContentTransition
 import com.astralplayer.nextplayer.utils.ErrorHandler
-import com.astralplayer.nextplayer.feature.ai.GoogleAIStudioService
-import com.astralplayer.nextplayer.feature.ai.SubtitleGenerationResult
 import android.util.Log
 import kotlinx.coroutines.launch
 import com.astralplayer.nextplayer.ui.components.VideoThumbnail
@@ -163,27 +161,6 @@ fun MainScreen() {
                         )
                     }
                     
-                    // Debug: AI Test Button
-                    IconButton(onClick = {
-                        showTestDialog = true
-                        coroutineScope.launch {
-                            testResult = "Testing AI service..."
-                            val aiService = GoogleAIStudioService(context)
-                            aiService.testConnectivity().collect { result ->
-                                testResult = when (result) {
-                                    is SubtitleGenerationResult.Progress -> result.message
-                                    is SubtitleGenerationResult.Success -> "✅ SUCCESS: ${result.subtitleContent}"
-                                    is SubtitleGenerationResult.Error -> "❌ ERROR: ${result.message}"
-                                }
-                            }
-                        }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.BugReport,
-                            contentDescription = "Test AI Service",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
                 }
             )
         }

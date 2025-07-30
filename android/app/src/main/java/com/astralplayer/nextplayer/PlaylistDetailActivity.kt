@@ -685,7 +685,8 @@ private suspend fun playAllVideos(
     // Convert repository PlaylistVideo to PlayerRepository PlaylistVideo
     val playlistVideos = videos.map { video ->
         com.astralplayer.nextplayer.data.PlaylistVideo(
-            uri = android.net.Uri.parse(video.uri),
+            playlistId = 0L,
+            uri = video.uri,
             title = video.title,
             duration = video.duration
         )
@@ -694,7 +695,7 @@ private suspend fun playAllVideos(
     // Start the VideoPlayerActivity with the first video and queue the rest
     val firstVideo = if (shuffle) playlistVideos.shuffled().first() else playlistVideos.first()
     val intent = Intent(context, VideoPlayerActivity::class.java).apply {
-        data = firstVideo.uri
+        data = android.net.Uri.parse(firstVideo.uri)
         putExtra("video_title", firstVideo.title)
         putExtra("playlist_mode", true)
         putExtra("playlist_shuffle", shuffle)

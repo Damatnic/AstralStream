@@ -5,4 +5,4 @@ import com.astralplayer.nextplayer.data.database.AstralVuDatabase
 import com.astralplayer.nextplayer.di.DatabaseModule
 
 val Context.database: AstralVuDatabase
-    get() = DatabaseModule.getDatabase(this)
+    get() = DatabaseModule.provideDatabase(this)

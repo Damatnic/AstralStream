@@ -4,7 +4,7 @@ plugins {
     id 'kotlin-parcelize'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.24'
     id 'kotlin-kapt'
-    // id 'com.google.dagger.hilt.android' // Temporarily disabled
+    id 'com.google.dagger.hilt.android'
     id 'com.google.gms.google-services'
     id 'com.google.firebase.crashlytics'
 }
@@ -48,6 +48,7 @@ android {
     }
     
     kapt {
+        correctErrorTypes = true
         arguments {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
@@ -189,10 +190,10 @@ dependencies {
     implementation "androidx.datastore:datastore-preferences:1.0.0"
     implementation "androidx.datastore:datastore:1.0.0"
 
-    // Hilt - Temporarily disabled
-    // implementation "com.google.dagger:hilt-android:2.51.1"
-    // kapt "com.google.dagger:hilt-compiler:2.51.1"
-    // implementation "androidx.hilt:hilt-navigation-compose:1.2.0"
+    // Hilt
+    implementation "com.google.dagger:hilt-android:2.51.1"
+    kapt "com.google.dagger:hilt-compiler:2.51.1"
+    implementation "androidx.hilt:hilt-navigation-compose:1.2.0"
     
     // Testing dependencies
     testImplementation 'junit:junit:4.13.2'
@@ -225,32 +226,32 @@ dependencies {
     implementation 'com.google.android.gms:play-services-cast:21.4.0'
     implementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
     
-    // ML Kit for AI scene detection
-    implementation 'com.google.mlkit:image-labeling:17.0.8'
-    implementation 'com.google.mlkit:object-detection:17.0.1'
-    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta4'
+    // ML Kit for AI scene detection - REMOVED for APK size optimization
+    // implementation 'com.google.mlkit:image-labeling:17.0.8'
+    // implementation 'com.google.mlkit:object-detection:17.0.1'
+    // implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta4'
     
-    // TensorFlow Lite for custom ML models
-    implementation 'org.tensorflow:tensorflow-lite:2.14.0'
-    implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
-    implementation 'org.tensorflow:tensorflow-lite-gpu:2.14.0'
+    // TensorFlow Lite for custom ML models - REMOVED for APK size optimization
+    // implementation 'org.tensorflow:tensorflow-lite:2.14.0'
+    // implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
+    // implementation 'org.tensorflow:tensorflow-lite-gpu:2.14.0'
     
-    // Google Drive API
-    implementation('com.google.api-client:google-api-client-android:2.0.0') {
-        exclude group: 'com.fasterxml.jackson.core'
-        exclude group: 'ch.randelshofer'
-    }
-    implementation('com.google.apis:google-api-services-drive:v3-rev20240123-2.0.0') {
-        exclude group: 'com.fasterxml.jackson.core'
-        exclude group: 'ch.randelshofer'
-    }
-    implementation 'com.google.android.gms:play-services-auth:21.0.0'
+    // Google Drive API - REMOVED for APK size optimization
+    // implementation('com.google.api-client:google-api-client-android:2.0.0') {
+    //     exclude group: 'com.fasterxml.jackson.core'
+    //     exclude group: 'ch.randelshofer'
+    // }
+    // implementation('com.google.apis:google-api-services-drive:v3-rev20240123-2.0.0') {
+    //     exclude group: 'com.fasterxml.jackson.core'
+    //     exclude group: 'ch.randelshofer'
+    // }
+    // implementation 'com.google.android.gms:play-services-auth:21.0.0'
     
-    // Dropbox SDK
-    implementation('com.dropbox.core:dropbox-core-sdk:5.4.5') {
-        exclude group: 'com.fasterxml.jackson.core'
-        exclude group: 'ch.randelshofer'
-    }
+    // Dropbox SDK - REMOVED for APK size optimization
+    // implementation('com.dropbox.core:dropbox-core-sdk:5.4.5') {
+    //     exclude group: 'com.fasterxml.jackson.core'
+    //     exclude group: 'ch.randelshofer'
+    // }
     
     // // Microsoft Identity Client (MSAL) for OneDrive (commented out - user said no OneDrive needed)
     // // implementation 'com.microsoft.identity.client:msal:4.9.0'
@@ -265,11 +266,11 @@ dependencies {
     // implementation 'com.fasterxml.jackson.core:jackson-core:2.13.5'
     // implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.5'
     
-    // RTMP Streaming - RootEncoder library
-    implementation 'com.github.pedroSG94.RootEncoder:library:2.3.1'
+    // RTMP Streaming - RootEncoder library - REMOVED for APK size optimization
+    // implementation 'com.github.pedroSG94.RootEncoder:library:2.3.1'
     
-    // Google AI Studio (Gemini) for AI features
-    implementation 'com.google.ai.client.generativeai:generativeai:0.7.0'
+    // Google AI Studio (Gemini) for AI features - REMOVED for APK size optimization
+    // implementation 'com.google.ai.client.generativeai:generativeai:0.7.0'
     
     // Google Cloud Speech-to-Text (commented out for now - requires setup)
     // implementation 'com.google.cloud:google-cloud-speech:4.20.0'
@@ -299,8 +300,8 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
 
-// Configure kapt
-kapt {
-    correctErrorTypes = true
-    useBuildCache = true
-}
+// Configure kapt - Temporarily disabled
+// kapt {
+//     correctErrorTypes = true
+//     useBuildCache = true
+// }

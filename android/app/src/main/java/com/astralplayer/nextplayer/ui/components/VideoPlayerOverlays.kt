@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.astralplayer.nextplayer.ui.components.BubbleCard
+import com.astralplayer.nextplayer.ui.components.BubbleButton
 
 /**
  * Video Player Overlay Components for AstralStream
@@ -192,39 +194,6 @@ fun SpeedOverlay(
                     fontWeight = FontWeight.Bold
                 )
             }
-        }
-    }
-}
-
-// ============= CONTROL LOCK OVERLAY =============
-
-@Composable
-fun ControlLockOverlay(
-    isLocked: Boolean,
-    onToggleLock: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = isLocked,
-        enter = fadeIn() + scaleIn(),
-        exit = fadeOut() + scaleOut(),
-        modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f)),
-            contentAlignment = Alignment.TopEnd
-        ) {
-            BubbleIconButton(
-                onClick = onToggleLock,
-                icon = Icons.Default.Lock,
-                size = 48,
-                iconSize = 24,
-                containerColor = Color.Black.copy(alpha = 0.7f),
-                contentColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(24.dp)
-            )
         }
     }
 }
@@ -532,14 +501,14 @@ private fun GestureIndicatorCard(
 // ============= DATA CLASSES =============
 
 data class SubtitleStyle(
-    val fontSize: sp = 18.sp,
+    val fontSize: androidx.compose.ui.unit.TextUnit = 18.sp,
     val textColor: Color = Color.White,
     val backgroundColor: Color = Color.Black.copy(alpha = 0.7f),
     val isBold: Boolean = false,
-    val cornerRadius: dp = 4.dp,
-    val horizontalPadding: dp = 12.dp,
-    val verticalPadding: dp = 6.dp,
-    val shadowBlur: dp = 0.dp
+    val cornerRadius: androidx.compose.ui.unit.Dp = 4.dp,
+    val horizontalPadding: androidx.compose.ui.unit.Dp = 12.dp,
+    val verticalPadding: androidx.compose.ui.unit.Dp = 6.dp,
+    val shadowBlur: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     companion object {
         val Default = SubtitleStyle()

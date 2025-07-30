@@ -12,41 +12,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.astralplayer.nextplayer.data.cloud.CloudProvider
-import com.astralplayer.nextplayer.feature.cloud.CloudStorageManager
-import com.astralplayer.nextplayer.feature.cloud.CloudStorageViewModel
+import com.astralplayer.nextplayer.viewmodel.CloudStorageViewModel
+import androidx.activity.viewModels
+import dagger.hilt.android.AndroidEntryPoint
 import com.astralplayer.nextplayer.ui.screens.CloudStorageScreen
 import com.astralplayer.nextplayer.ui.theme.AstralPlayerTheme
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
-
+@AndroidEntryPoint
 class CloudStorageActivity : ComponentActivity() {
     
-    private lateinit var cloudStorageManager: CloudStorageManager
-    private lateinit var viewModel: CloudStorageViewModel
+    private val viewModel: CloudStorageViewModel by viewModels()
     
-    private val googleSignInLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                viewModel.handleGoogleSignInResult(account)
-            } catch (e: ApiException) {
-                // Handle sign-in failure
-            }
-        }
-    }
-    
+    // Launcher for file picker
     private var selectedProvider: CloudProvider? = null
     
     private val filePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK && result.data?.data != null) {
-            val fileUri = result.data!!.data!!
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
             selectedProvider?.let { provider ->
-                viewModel.uploadFile(provider, fileUri)
+                // TODO: Implement file upload
             }
         }
         selectedProvider = null
@@ -55,9 +39,7 @@ class CloudStorageActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Initialize cloud storage manager
-        cloudStorageManager = CloudStorageManager(this)
-        viewModel = CloudStorageViewModel(cloudStorageManager)
+        // ViewModel is initialized by Hilt
         
         setContent {
             AstralPlayerTheme {
@@ -68,47 +50,30 @@ class CloudStorageActivity : ComponentActivity() {
                     val accounts by viewModel.connectedAccounts.collectAsState()
                     val files by viewModel.cloudFiles.collectAsState()
                     val syncStatus by viewModel.syncStatus.collectAsState()
-                    val cloudError by viewModel.cloudError.collectAsState()
                     
                     CloudStorageScreen(
                         accounts = accounts,
                         files = files,
                         syncStatus = syncStatus,
-                        cloudError = cloudError,
+                        cloudError = null,
                         onConnectAccount = { provider ->
-                            viewModel.connectAccount(provider, this)
+                            viewModel.connectProvider(provider)
                         },
                         onDisconnectAccount = { accountId ->
-                            viewModel.disconnectAccount(accountId)
+                            viewModel.disconnectProvider(accountId)
                         },
                         onSyncFiles = { provider ->
-                            viewModel.syncFiles(provider)
+                            viewModel.syncFiles()
                         },
                         onDownloadFile = { file ->
-                            // Download to app's private storage
-                            val localPath = "${filesDir.absolutePath}/${file.name}"
-                            viewModel.downloadFile(file, localPath)
+                            // TODO: Implement file download
                         },
                         onUploadFile = { provider ->
-                            // Launch file picker for upload
-                            val intent = android.content.Intent(android.content.Intent.ACTION_GET_CONTENT).apply {
-                                type = "video/*"
-                                putExtra(android.content.Intent.EXTRA_MIME_TYPES, arrayOf("video/*", "audio/*"))
-                                addCategory(android.content.Intent.CATEGORY_OPENABLE)
-                            }
-                            try {
-                                filePickerLauncher.launch(intent)
-                                selectedProvider = provider
-                            } catch (e: Exception) {
-                                android.widget.Toast.makeText(
-                                    this@CloudStorageActivity,
-                                    "No file manager app found",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                            selectedProvider = provider
+                            filePickerLauncher.launch("video/*")
                         },
                         onClearError = {
-                            viewModel.clearError()
+                            // TODO: Implement error clearing
                         },
                         onNavigateBack = {
                             finish()
@@ -119,9 +84,4 @@ class CloudStorageActivity : ComponentActivity() {
         }
     }
     
-    override fun onResume() {
-        super.onResume()
-        // Handle Dropbox authentication callback
-        viewModel.handleDropboxAuthentication()
-    }
 }

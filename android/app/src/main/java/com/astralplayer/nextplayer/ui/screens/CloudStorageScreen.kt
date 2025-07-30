@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,9 +23,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.astralplayer.nextplayer.data.cloud.CloudProvider
-import com.astralplayer.nextplayer.feature.cloud.CloudAccount
-import com.astralplayer.nextplayer.feature.cloud.CloudFile
-import com.astralplayer.nextplayer.feature.cloud.SyncStatus
+import com.astralplayer.nextplayer.data.cloud.CloudAccount
+import com.astralplayer.nextplayer.data.cloud.CloudFile
+import com.astralplayer.nextplayer.data.cloud.SyncStatus
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -58,7 +60,7 @@ fun CloudStorageScreen(
                 actions = {
                     IconButton(
                         onClick = { onSyncFiles(null) },
-                        enabled = !syncStatus.isActive
+                        enabled = syncStatus != SyncStatus.SYNCING
                     ) {
                         Icon(
                             Icons.Default.Sync,
@@ -77,7 +79,7 @@ fun CloudStorageScreen(
                 .padding(paddingValues)
         ) {
             // Sync status
-            if (syncStatus.isActive) {
+            if (syncStatus == SyncStatus.SYNCING) {
                 SyncStatusCard(syncStatus = syncStatus)
             }
             
@@ -153,31 +155,22 @@ private fun SyncStatusCard(syncStatus: SyncStatus) {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Syncing files...",
+                text = when (syncStatus) {
+                    SyncStatus.SYNCING -> "Syncing files..."
+                    SyncStatus.COMPLETED -> "Sync completed"
+                    SyncStatus.FAILED -> "Sync failed"
+                    SyncStatus.PAUSED -> "Sync paused"
+                    SyncStatus.CANCELLED -> "Sync cancelled"
+                    else -> "Ready to sync"
+                },
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Medium
             )
             
-            if (syncStatus.currentFile.isNotEmpty()) {
-                Text(
-                    text = syncStatus.currentFile,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
             Spacer(modifier = Modifier.height(8.dp))
             
             LinearProgressIndicator(
-                progress = syncStatus.progress,
                 modifier = Modifier.fillMaxWidth()
-            )
-            
-            Text(
-                text = "${syncStatus.filesProcessed}/${syncStatus.totalFiles} files",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.End)
             )
         }
     }
@@ -303,9 +296,9 @@ private fun CloudFileItem(
         ) {
             // File icon
             Icon(
-                imageVector = if (file.isFolder) Icons.Default.Folder else Icons.Default.VideoFile,
-                contentDescription = if (file.isFolder) "Folder" else "Video",
-                tint = if (file.isFolder) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                imageVector = if (file.isVideo) Icons.Default.VideoFile else Icons.Default.InsertDriveFile,
+                contentDescription = if (file.isVideo) "Video" else "File",
+                tint = if (file.isVideo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(24.dp)
             )
             
@@ -331,7 +324,7 @@ private fun CloudFileItem(
                     )
                     
                     Text(
-                        text = formatDate(file.modifiedTime),
+                        text = formatDate(file.modifiedTime.time),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -339,7 +332,7 @@ private fun CloudFileItem(
             }
             
             // Download button
-            if (!file.isFolder) {
+            if (file.isVideo) {
                 IconButton(onClick = onDownload) {
                     Icon(
                         Icons.Default.Download,

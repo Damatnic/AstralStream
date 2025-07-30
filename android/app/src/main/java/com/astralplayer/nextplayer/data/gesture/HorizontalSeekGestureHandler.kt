@@ -3,6 +3,7 @@ package com.astralplayer.nextplayer.data.gesture
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputScope
 import com.astralplayer.nextplayer.data.GestureAction
+import com.astralplayer.nextplayer.data.SeekDirection
 import com.astralplayer.nextplayer.data.SeekingGestureSettings
 import kotlin.math.abs
 
@@ -56,7 +57,8 @@ class HorizontalSeekGestureHandler(
         val seekDelta = (adjustedDragAmount / screenWidth) * 60000L // 60 seconds for full screen width
         
         return if (abs(seekDelta) > 100) { // Minimum threshold to avoid tiny seeks
-            GestureAction.Seek(seekDelta.toLong(), avgVelocity)
+            val direction = if (seekDelta > 0) SeekDirection.FORWARD else SeekDirection.BACKWARD
+            GestureAction.Seek(kotlin.math.abs(seekDelta.toLong()), direction)
         } else null
     }
     
@@ -76,7 +78,8 @@ class HorizontalSeekGestureHandler(
         
         val finalSeekTime = (totalSeekTime * (1f + velocityBoost * 0.2f)).toLong()
         
-        return GestureAction.Seek(finalSeekTime, velocity)
+        val direction = if (finalSeekTime > 0) SeekDirection.FORWARD else SeekDirection.BACKWARD
+        return GestureAction.Seek(kotlin.math.abs(finalSeekTime), direction)
     }
     
     /**

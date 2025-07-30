@@ -223,20 +223,7 @@ fun NoPlaylistsState(
     )
 }
 
-@Composable
-fun NoRecentFilesState(
-    onPlayTestVideo: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AnimatedEmptyState(
-        icon = Icons.Default.History,
-        title = "No recent videos",
-        description = "Videos you play will appear here for quick access. Start watching videos to build your recent files list.",
-        actionText = "Play Test Video",
-        onActionClick = onPlayTestVideo,
-        modifier = modifier
-    )
-}
+// NoRecentFilesState moved to dedicated file
 
 @Composable
 fun NoSearchResultsState(
@@ -263,41 +250,7 @@ fun NoSubtitlesState(
     )
 }
 
-@Composable
-fun LoadingState(
-    message: String = "Loading...",
-    modifier: Modifier = Modifier
-) {
-    var isVisible by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(Unit) {
-        delay(100)
-        isVisible = true
-    }
-    
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(animationSpec = tween(400))
-    ) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            PulsingProgressIndicator()
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
+// LoadingState moved to dedicated LoadingState.kt file
 
 @Composable
 private fun PulsingProgressIndicator() {

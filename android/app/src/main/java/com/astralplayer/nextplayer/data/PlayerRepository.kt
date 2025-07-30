@@ -55,11 +55,7 @@ data class SubtitleTrack(
     val isSelected: Boolean = false
 )
 
-data class PlaylistVideo(
-    val uri: Uri,
-    val title: String,
-    val duration: Long = 0L
-)
+// PlaylistVideo moved to dedicated file
 
 interface PlayerRepository {
     val playerState: StateFlow<PlayerUiState>
@@ -406,8 +402,14 @@ class PlayerRepositoryImpl constructor(
                 is GestureAction.PinchZoom -> {
                     // Zoom would be handled at the UI level
                 }
+                is GestureAction.SwipeNavigation -> {
+                    // Navigation would be handled at the UI level
+                }
                 is GestureAction.GestureConflict -> {
                     // Log or handle gesture conflicts
+                }
+                is GestureAction.Custom -> {
+                    // Handle custom gestures
                 }
             }
         } catch (e: Exception) {

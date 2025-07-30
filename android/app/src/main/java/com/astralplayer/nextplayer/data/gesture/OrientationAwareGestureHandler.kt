@@ -3,6 +3,7 @@ package com.astralplayer.nextplayer.data.gesture
 import android.content.res.Configuration
 import androidx.compose.ui.geometry.Offset
 import com.astralplayer.nextplayer.data.GestureAction
+import com.astralplayer.nextplayer.data.SeekDirection
 import com.astralplayer.nextplayer.data.TouchSide
 import com.astralplayer.nextplayer.data.GestureType
 import com.astralplayer.nextplayer.data.EnhancedGestureSettings
@@ -80,7 +81,8 @@ class OrientationAwareGestureHandler(
         
         val seekAmount = (adjustedDelta / screenSize.x) * settings.seeking.seekStepSize
         
-        return GestureAction.Seek(seekAmount.toLong())
+        val direction = if (seekAmount > 0) SeekDirection.FORWARD else SeekDirection.BACKWARD
+        return GestureAction.Seek(kotlin.math.abs(seekAmount.toLong()), direction)
     }
     
     /**
@@ -111,7 +113,7 @@ class OrientationAwareGestureHandler(
         
         val volumeChange = (effectiveDelta / screenSize.y) * settings.volume.sensitivity
         
-        return GestureAction.VolumeChange(volumeChange, effectiveSide)
+        return GestureAction.VolumeChange(volumeChange)
     }
     
     /**
@@ -141,7 +143,7 @@ class OrientationAwareGestureHandler(
         
         val brightnessChange = (effectiveDelta / screenSize.y) * settings.brightness.sensitivity
         
-        return GestureAction.BrightnessChange(brightnessChange, effectiveSide)
+        return GestureAction.BrightnessChange(brightnessChange)
     }
     
     /**
@@ -165,10 +167,15 @@ class OrientationAwareGestureHandler(
             else -> settings.doubleTap.seekAmount.toFloat()
         }.toLong()
         
+        val positionRatio = when (orientation.orientation) {
+            DeviceAdaptationManager.Orientation.LANDSCAPE -> position.x / screenSize.x
+            else -> position.x / screenSize.x
+        }
+        
         return GestureAction.DoubleTapSeek(
             forward = isForward,
             amount = seekAmount,
-            side = effectiveSide
+            position = positionRatio
         )
     }
     

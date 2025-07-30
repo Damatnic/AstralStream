@@ -6,6 +6,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.ui.semantics.*
 import com.astralplayer.nextplayer.data.GestureAction
+import com.astralplayer.nextplayer.data.SeekDirection
 import com.astralplayer.nextplayer.data.TouchSide
 import com.astralplayer.nextplayer.data.GestureType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,10 +74,14 @@ class GestureAccessibilityManager(
                 "Long press seek at ${action.speed}x speed"
             }
             is GestureAction.PinchZoom -> {
-                val percent = (action.scale * 100).toInt()
+                val percent = (action.scaleFactor * 100).toInt()
                 "Zoom $percent percent"
             }
+            is GestureAction.SwipeNavigation -> {
+                "Navigation swipe ${action.direction.name.lowercase()}"
+            }
             is GestureAction.GestureConflict -> "Gesture conflict detected"
+            is GestureAction.Custom -> "Custom gesture ${action.type}"
         }
         
         sendAccessibilityEvent(announcement)
@@ -99,19 +104,19 @@ class GestureAccessibilityManager(
         // Volume control
         customActions = listOf(
             CustomAccessibilityAction("Increase Volume") {
-                announceGestureAction(GestureAction.VolumeChange(0.1f, TouchSide.CENTER))
+                announceGestureAction(GestureAction.VolumeChange(0.1f))
                 true
             },
             CustomAccessibilityAction("Decrease Volume") {
-                announceGestureAction(GestureAction.VolumeChange(-0.1f, TouchSide.CENTER))
+                announceGestureAction(GestureAction.VolumeChange(-0.1f))
                 true
             },
             CustomAccessibilityAction("Seek Forward 10 seconds") {
-                announceGestureAction(GestureAction.Seek(10000L))
+                announceGestureAction(GestureAction.Seek(10000L, SeekDirection.FORWARD))
                 true
             },
             CustomAccessibilityAction("Seek Backward 10 seconds") {
-                announceGestureAction(GestureAction.Seek(-10000L))
+                announceGestureAction(GestureAction.Seek(10000L, SeekDirection.BACKWARD))
                 true
             },
             CustomAccessibilityAction("Toggle Play/Pause") {
@@ -209,32 +214,32 @@ class AccessibleGestureInput(
             seekBackward = AccessibleControl(
                 label = "Seek Backward",
                 contentDescription = "Seek backward 10 seconds",
-                action = { GestureAction.Seek(-10000L) }
+                action = { GestureAction.Seek(10000L, SeekDirection.BACKWARD) }
             ),
             seekForward = AccessibleControl(
                 label = "Seek Forward", 
                 contentDescription = "Seek forward 10 seconds",
-                action = { GestureAction.Seek(10000L) }
+                action = { GestureAction.Seek(10000L, SeekDirection.FORWARD) }
             ),
             volumeUp = AccessibleControl(
                 label = "Volume Up",
                 contentDescription = "Increase volume",
-                action = { GestureAction.VolumeChange(0.1f, TouchSide.CENTER) }
+                action = { GestureAction.VolumeChange(0.1f) }
             ),
             volumeDown = AccessibleControl(
                 label = "Volume Down",
                 contentDescription = "Decrease volume",
-                action = { GestureAction.VolumeChange(-0.1f, TouchSide.CENTER) }
+                action = { GestureAction.VolumeChange(-0.1f) }
             ),
             brightnessUp = AccessibleControl(
                 label = "Brightness Up",
                 contentDescription = "Increase brightness",
-                action = { GestureAction.BrightnessChange(0.1f, TouchSide.CENTER) }
+                action = { GestureAction.BrightnessChange(0.1f) }
             ),
             brightnessDown = AccessibleControl(
                 label = "Brightness Down",
                 contentDescription = "Decrease brightness",
-                action = { GestureAction.BrightnessChange(-0.1f, TouchSide.CENTER) }
+                action = { GestureAction.BrightnessChange(-0.1f) }
             ),
             playPause = AccessibleControl(
                 label = "Play/Pause",
@@ -268,16 +273,16 @@ class VoiceGestureCommands {
     private val commands = mapOf(
         "play" to GestureAction.TogglePlayPause,
         "pause" to GestureAction.TogglePlayPause,
-        "seek forward" to GestureAction.Seek(10000L),
-        "seek backward" to GestureAction.Seek(-10000L),
-        "skip forward" to GestureAction.DoubleTapSeek(true, 10000L, TouchSide.RIGHT),
-        "skip backward" to GestureAction.DoubleTapSeek(false, 10000L, TouchSide.LEFT),
-        "volume up" to GestureAction.VolumeChange(0.1f, TouchSide.CENTER),
-        "volume down" to GestureAction.VolumeChange(-0.1f, TouchSide.CENTER),
-        "brightness up" to GestureAction.BrightnessChange(0.1f, TouchSide.CENTER),
-        "brightness down" to GestureAction.BrightnessChange(-0.1f, TouchSide.CENTER),
-        "zoom in" to GestureAction.PinchZoom(1.2f, androidx.compose.ui.geometry.Offset.Zero),
-        "zoom out" to GestureAction.PinchZoom(0.8f, androidx.compose.ui.geometry.Offset.Zero)
+        "seek forward" to GestureAction.Seek(10000L, SeekDirection.FORWARD),
+        "seek backward" to GestureAction.Seek(10000L, SeekDirection.BACKWARD),
+        "skip forward" to GestureAction.DoubleTapSeek(true, 10000L, 0.8f),
+        "skip backward" to GestureAction.DoubleTapSeek(false, 10000L, 0.2f),
+        "volume up" to GestureAction.VolumeChange(0.1f),
+        "volume down" to GestureAction.VolumeChange(-0.1f),
+        "brightness up" to GestureAction.BrightnessChange(0.1f),
+        "brightness down" to GestureAction.BrightnessChange(-0.1f),
+        "zoom in" to GestureAction.PinchZoom(1.2f, 0.5f, 0.5f),
+        "zoom out" to GestureAction.PinchZoom(0.8f, 0.5f, 0.5f)
     )
     
     /**
@@ -294,8 +299,9 @@ class VoiceGestureCommands {
         seekPattern.find(normalizedCommand)?.let { match ->
             val direction = match.groupValues[1]
             val seconds = match.groupValues[2].toIntOrNull() ?: return null
-            val deltaMs = seconds * 1000L * if (direction == "forward") 1 else -1
-            return GestureAction.Seek(deltaMs)
+            val deltaMs = seconds * 1000L
+            val seekDirection = if (direction == "forward") SeekDirection.FORWARD else SeekDirection.BACKWARD
+            return GestureAction.Seek(deltaMs, seekDirection)
         }
         
         return null
