@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "315779290812",
+    "project_id": "astralstream-f1cf3",
+    "storage_bucket": "astralstream-f1cf3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:315779290812:android:756cbe1132c4e556aae2b9",
+        "android_client_info": {
+          "package_name": "com.astralplayer.nextplayer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANW4ol_uBfpXD2a799e19-NLDU0cQ_ssY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
