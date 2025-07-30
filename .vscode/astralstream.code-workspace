@@ -1,0 +1,283 @@
+{
+  "folders": [
+    {
+      "name": "AstralStream",
+      "path": ".."
+    }
+  ],
+  "settings": {
+    // Kotlin Language Server
+    "kotlin.languageServer.enabled": true,
+    "kotlin.compiler.jvm.target": "1.8",
+    "kotlin.linting.enabled": true,
+    
+    // Android Settings
+    "android.gradle.syncOnStart": true,
+    "android.gradle.daemon": true,
+    "android.logcat.maxBuffer": 1000000,
+    
+    // File Associations
+    "files.associations": {
+      "*.kt": "kotlin",
+      "*.kts": "kotlin",
+      "*.gradle": "groovy",
+      "*.gradle.kts": "kotlin"
+    },
+    
+    // Editor Settings
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true,
+      "source.fixAll": true
+    },
+    "editor.rulers": [100, 120],
+    "editor.wordWrap": "bounded",
+    "editor.wordWrapColumn": 120,
+    
+    // Claude AI Settings
+    "claude.contextLength": 8000,
+    "claude.autoComplete": true,
+    "claude.model": "claude-3-sonnet",
+    "claude.temperature": 0.3,
+    
+    // Git Settings
+    "git.autofetch": true,
+    "git.enableSmartCommit": true,
+    "git.confirmSync": false,
+    "gitlens.codeLens.enabled": true,
+    
+    // Search Settings
+    "search.exclude": {
+      "**/build": true,
+      "**/.gradle": true,
+      "**/node_modules": true,
+      "**/.git": true,
+      "**/generated": true
+    },
+    
+    // File Watcher
+    "files.watcherExclude": {
+      "**/build/**": true,
+      "**/.gradle/**": true,
+      "**/node_modules/**": true
+    },
+    
+    // Spell Checking
+    "cSpell.words": [
+      "astralplayer",
+      "nextplayer",
+      "exoplayer",
+      "codecs",
+      "androidx",
+      "kotlin",
+      "coroutines",
+      "hilt",
+      "dagger",
+      "astralstream",
+      "ultrafast",
+      "realtime",
+      "webm",
+      "mkv"
+    ],
+    
+    // Error Lens
+    "errorLens.enabled": true,
+    "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+    
+    // Terminal
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    
+    // Debugging
+    "debug.allowBreakpointsEverywhere": true,
+    "debug.showInlineBreakpointCandidates": true
+  },
+  
+  "extensions": {
+    "recommendations": [
+      "claude-ai.claude-dev",
+      "mathiasfrohlich.kotlin",
+      "google.android-studio-support", 
+      "eamodio.gitlens",
+      "usernamehw.errorlens",
+      "streetsidesoftware.code-spell-checker",
+      "ms-vscode.vscode-json",
+      "redhat.vscode-xml",
+      "ms-vscode.gradle",
+      "vscjava.vscode-gradle"
+    ]
+  },
+  
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "🔄 Gradle Sync",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["--refresh-dependencies", "build"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "🧹 Clean Build",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["clean", "build"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "📱 Install Debug APK",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["installDebug"],
+        "group": "build",
+        "dependsOn": "🧹 Clean Build"
+      },
+      {
+        "label": "🧪 Run Unit Tests",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["test"],
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "🤖 Run Android Tests",
+        "type": "shell", 
+        "command": "./gradlew",
+        "args": ["connectedAndroidTest"],
+        "group": "test"
+      },
+      {
+        "label": "💾 Backup Current Code",
+        "type": "shell",
+        "command": "git",
+        "args": ["stash", "save", "Pre-integration backup $(date)"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always"
+        }
+      },
+      {
+        "label": "🔍 Analyze Dependencies",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["app:dependencies", "--configuration", "debugCompileClasspath"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "dedicated"
+        }
+      },
+      {
+        "label": "📊 Check for Updates",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["dependencyUpdates"],
+        "group": "build"
+      },
+      {
+        "label": "🎯 Lint Check",
+        "type": "shell",
+        "command": "./gradlew",
+        "args": ["lint"],
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always"
+        }
+      },
+      {
+        "label": "🚀 Integration Workflow",
+        "dependsOrder": "sequence",
+        "dependsOn": [
+          "💾 Backup Current Code",
+          "🔄 Gradle Sync", 
+          "🧹 Clean Build",
+          "🧪 Run Unit Tests",
+          "🎯 Lint Check"
+        ],
+        "group": "build"
+      }
+    ]
+  },
+  
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "🐛 Android Debug",
+        "type": "android",
+        "request": "attach",
+        "applicationId": "com.astralplayer.nextplayer",
+        "adbPath": "${env:ANDROID_HOME}/platform-tools/adb"
+      },
+      {
+        "name": "🎬 Test Video Intent",
+        "type": "android",
+        "request": "launch",
+        "program": "${workspaceFolder}",
+        "intentAction": "android.intent.action.VIEW",
+        "intentData": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        "intentType": "video/mp4",
+        "intentExtras": {
+          "video_title": "Big Buck Bunny Test"
+        }
+      },
+      {
+        "name": "🔗 Test HLS Stream",
+        "type": "android", 
+        "request": "launch",
+        "program": "${workspaceFolder}",
+        "intentAction": "android.intent.action.VIEW",
+        "intentData": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
+        "intentType": "application/vnd.apple.mpegurl"
+      },
+      {
+        "name": "🎭 Test Adult Content Mode",
+        "type": "android",
+        "request": "launch", 
+        "program": "${workspaceFolder}",
+        "intentAction": "android.intent.action.VIEW",
+        "intentData": "content://test/adult/sample.mp4",
+        "intentType": "video/mp4",
+        "intentExtras": {
+          "adult_content_mode": true,
+          "enhanced_codec_support": true
+        }
+      }
+    ]
+  },
+  
+  "compounds": [
+    {
+      "name": "🧪 Full Test Suite",
+      "configurations": [
+        "🐛 Android Debug",
+        "🎬 Test Video Intent",
+        "🔗 Test HLS Stream"
+      ]
+    }
+  ]
+}

@@ -24,6 +24,12 @@ xmlns:tools="http://schemas.android.com/tools">
     <!-- For voice recognition -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    
+    <!-- Additional permissions for streaming and AI subtitles -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.PICTURE_IN_PICTURE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name="com.astralplayer.nextplayer.AstralVuApplication"
@@ -36,7 +42,11 @@ xmlns:tools="http://schemas.android.com/tools">
         android:theme="@style/Theme.AstralPlayer"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:preserveLegacyExternalStorage="true"
+        tools:targetApi="31">
         
         <!-- Cast Options Provider -->
         <meta-data
@@ -183,17 +193,124 @@ xmlns:tools="http://schemas.android.com/tools">
         <activity
             android:name="com.astralplayer.nextplayer.VideoPlayerActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode"
             android:launchMode="singleTop"
             android:screenOrientation="sensor"
             android:theme="@style/Theme.AstralPlayer.Fullscreen"
             android:supportsPictureInPicture="true"
-            android:resizeableActivity="true">
+            android:resizeableActivity="true"
+            android:excludeFromRecents="false">
             
-            <!-- Also handle video intents directly -->
-            <intent-filter>
+            <!-- High priority browser video intents -->
+            <intent-filter android:priority="1001" android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            
+            <intent-filter android:priority="1001" android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            
+            <!-- HLS Streaming (M3U8) - High Priority -->
+            <intent-filter android:priority="1002">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:pathPattern=".*\\.m3u8" />
+            </intent-filter>
+            
+            <intent-filter android:priority="1002">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:pathPattern=".*\\.m3u8" />
+            </intent-filter>
+            
+            <!-- DASH Streaming (MPD) -->
+            <intent-filter android:priority="1002">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:pathPattern=".*\\.mpd" />
+            </intent-filter>
+            
+            <intent-filter android:priority="1002">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:pathPattern=".*\\.mpd" />
+            </intent-filter>
+            
+            <!-- Live streaming protocols -->
+            <intent-filter android:priority="1001">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rtmp" />
+            </intent-filter>
+            
+            <intent-filter android:priority="1001">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rtsp" />
+            </intent-filter>
+            
+            <!-- Content and file URIs -->
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+        
+        <!-- Browser Streaming Video Player Activity (Specialized) -->
+        <activity
+            android:name="com.astralplayer.nextplayer.feature.browser.BrowserStreamingVideoPlayerActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AstralPlayer.Fullscreen"
+            android:screenOrientation="landscape"
+            android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|keyboardHidden"
+            android:excludeFromRecents="false">
+            
+            <!-- Ultra-high priority for browser streaming content -->
+            <intent-filter android:priority="1003" android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="*.stream" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            
+            <intent-filter android:priority="1003" android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="*cdn*" />
                 <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
@@ -256,6 +373,19 @@ xmlns:tools="http://schemas.android.com/tools">
             android:name="com.astralplayer.nextplayer.LicensesActivity"
             android:label="Open Source Licenses" />
 
+        <!-- AI Subtitle Generation Service -->
+        <service
+            android:name="com.astralplayer.nextplayer.feature.ai.realtime.AISubtitleGenerationService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:enabled="true" />
+
+        <!-- Background streaming optimization service -->
+        <service
+            android:name="com.astralplayer.nextplayer.feature.browser.StreamingOptimizationService"
+            android:exported="false"
+            android:enabled="true" />
+
         <!-- File Provider for sharing -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -266,6 +396,24 @@ xmlns:tools="http://schemas.android.com/tools">
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Media Button Receiver -->
+        <receiver
+            android:name="com.astralplayer.nextplayer.receiver.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Network state receiver for streaming optimization -->
+        <receiver
+            android:name="com.astralplayer.nextplayer.receiver.NetworkStateReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+            </intent-filter>
+        </receiver>
 
     </application>
 
