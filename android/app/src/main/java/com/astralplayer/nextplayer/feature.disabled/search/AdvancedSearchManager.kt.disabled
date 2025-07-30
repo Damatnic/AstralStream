@@ -1,0 +1,555 @@
+package com.astralplayer.nextplayer.feature.search
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import com.astralplayer.nextplayer.data.RecentFile
+import kotlinx.coroutines.flow.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import java.util.*
+import kotlin.math.min
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "search_history")
+
+/**
+ * Advanced Search Manager
+ * Provides intelligent search with filters, history, and AI suggestions
+ */
+class AdvancedSearchManager(
+    private val context: Context
+) {
+    private val json = Json { 
+        ignoreUnknownKeys = true 
+        prettyPrint = true
+    }
+    
+    companion object {
+        private val SEARCH_HISTORY_KEY = stringPreferencesKey("search_history")
+        private val SEARCH_FILTERS_KEY = stringPreferencesKey("search_filters")
+        private const val MAX_HISTORY_ITEMS = 50
+        private const val MAX_SUGGESTIONS = 10
+    }
+    
+    private val _searchResults = MutableStateFlow<List<SearchResult>>(emptyList())
+    val searchResults: StateFlow<List<SearchResult>> = _searchResults
+    
+    private val _suggestions = MutableStateFlow<List<SearchSuggestion>>(emptyList())
+    val suggestions: StateFlow<List<SearchSuggestion>> = _suggestions
+    
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching
+    
+    /**
+     * Search for videos with advanced filters
+     */
+    suspend fun search(
+        query: String,
+        filters: SearchFilters = SearchFilters(),
+        videos: List<RecentFile>
+    ) {
+        _isSearching.value = true
+        
+        try {
+            // Save to search history
+            addToSearchHistory(query)
+            
+            // Apply search and filters
+            val results = videos
+                .filter { video ->
+                    // Text search
+                    val matchesQuery = query.isEmpty() || 
+                        video.fileName.contains(query, ignoreCase = true) ||
+                        video.filePath.contains(query, ignoreCase = true)
+                    
+                    // Apply filters
+                    matchesQuery && matchesFilters(video, filters)
+                }
+                .map { video ->
+                    // Calculate relevance score
+                    val score = calculateRelevanceScore(video, query, filters)
+                    SearchResult(
+                        video = video,
+                        relevanceScore = score,
+                        matchedFields = getMatchedFields(video, query)
+                    )
+                }
+                .sortedByDescending { it.relevanceScore }
+            
+            _searchResults.value = results
+            
+            // Generate AI suggestions based on results
+            generateSuggestions(query, results, filters)
+            
+        } finally {
+            _isSearching.value = false
+        }
+    }
+    
+    /**
+     * Get search suggestions based on query
+     */
+    suspend fun getSuggestions(
+        query: String,
+        videos: List<RecentFile>
+    ): List<SearchSuggestion> {
+        if (query.isEmpty()) {
+            return getRecentSearches()
+        }
+        
+        val suggestions = mutableListOf<SearchSuggestion>()
+        
+        // Add history-based suggestions
+        val history = getSearchHistory()
+        history.filter { it.query.startsWith(query, ignoreCase = true) }
+            .take(3)
+            .forEach { historyItem ->
+                suggestions.add(
+                    SearchSuggestion(
+                        text = historyItem.query,
+                        type = SuggestionType.HISTORY,
+                        icon = "history"
+                    )
+                )
+            }
+        
+        // Add file-based suggestions
+        val fileSuggestions = videos
+            .filter { it.fileName.contains(query, ignoreCase = true) }
+            .take(5)
+            .map { video ->
+                SearchSuggestion(
+                    text = video.fileName,
+                    type = SuggestionType.FILE,
+                    icon = "video",
+                    metadata = mapOf("path" to video.filePath)
+                )
+            }
+        suggestions.addAll(fileSuggestions)
+        
+        // Add smart suggestions
+        suggestions.addAll(generateSmartSuggestions(query, videos))
+        
+        return suggestions.take(MAX_SUGGESTIONS)
+    }
+    
+    /**
+     * Get search filters
+     */
+    suspend fun getSearchFilters(): SearchFilters {
+        val preferences = context.dataStore.data.first()
+        val filtersJson = preferences[SEARCH_FILTERS_KEY]
+        return if (filtersJson != null) {
+            try {
+                json.decodeFromString(filtersJson)
+            } catch (e: Exception) {
+                SearchFilters()
+            }
+        } else {
+            SearchFilters()
+        }
+    }
+    
+    /**
+     * Save search filters
+     */
+    suspend fun saveSearchFilters(filters: SearchFilters) {
+        context.dataStore.edit { preferences ->
+            preferences[SEARCH_FILTERS_KEY] = json.encodeToString(filters)
+        }
+    }
+    
+    /**
+     * Clear search history
+     */
+    suspend fun clearSearchHistory() {
+        context.dataStore.edit { preferences ->
+            preferences[SEARCH_HISTORY_KEY] = "[]"
+        }
+    }
+    
+    private fun matchesFilters(video: RecentFile, filters: SearchFilters): Boolean {
+        // Duration filter
+        if (filters.minDuration != null || filters.maxDuration != null) {
+            val duration = video.duration
+            if (filters.minDuration != null && duration < filters.minDuration) return false
+            if (filters.maxDuration != null && duration > filters.maxDuration) return false
+        }
+        
+        // Date filter
+        if (filters.dateRange != null) {
+            val videoDate = Date(video.lastPlayed)
+            if (videoDate.before(filters.dateRange.start) || 
+                videoDate.after(filters.dateRange.end)) return false
+        }
+        
+        // File size filter
+        if (filters.minFileSize != null || filters.maxFileSize != null) {
+            val fileSize = video.fileSize
+            if (filters.minFileSize != null && fileSize < filters.minFileSize) return false
+            if (filters.maxFileSize != null && fileSize > filters.maxFileSize) return false
+        }
+        
+        // Resolution filter
+        if (filters.resolutions.isNotEmpty()) {
+            val videoResolution = getVideoResolution(video)
+            if (videoResolution !in filters.resolutions) return false
+        }
+        
+        // Format filter
+        if (filters.formats.isNotEmpty()) {
+            val format = video.fileName.substringAfterLast('.', "").lowercase()
+            if (format !in filters.formats) return false
+        }
+        
+        // Source filter
+        if (filters.sources.isNotEmpty()) {
+            val source = getVideoSource(video)
+            if (source !in filters.sources) return false
+        }
+        
+        return true
+    }
+    
+    private fun calculateRelevanceScore(
+        video: RecentFile,
+        query: String,
+        filters: SearchFilters
+    ): Float {
+        var score = 0f
+        
+        if (query.isNotEmpty()) {
+            // Exact match in filename
+            if (video.fileName.equals(query, ignoreCase = true)) {
+                score += 10f
+            }
+            // Starts with query
+            else if (video.fileName.startsWith(query, ignoreCase = true)) {
+                score += 5f
+            }
+            // Contains query
+            else if (video.fileName.contains(query, ignoreCase = true)) {
+                score += 3f
+            }
+            
+            // Path matches
+            if (video.filePath.contains(query, ignoreCase = true)) {
+                score += 1f
+            }
+        }
+        
+        // Recency bonus
+        val daysSinceLastPlayed = (System.currentTimeMillis() - video.lastPlayed) / (1000 * 60 * 60 * 24)
+        score += (10f / (daysSinceLastPlayed + 1)).coerceAtMost(3f)
+        
+        // Play count bonus
+        score += (video.playCount * 0.1f).coerceAtMost(2f)
+        
+        // Filter match bonus
+        if (filters.favorites && video.isFavorite) {
+            score += 2f
+        }
+        
+        return score
+    }
+    
+    private fun getMatchedFields(video: RecentFile, query: String): List<String> {
+        val fields = mutableListOf<String>()
+        
+        if (query.isNotEmpty()) {
+            if (video.fileName.contains(query, ignoreCase = true)) {
+                fields.add("filename")
+            }
+            if (video.filePath.contains(query, ignoreCase = true)) {
+                fields.add("path")
+            }
+        }
+        
+        return fields
+    }
+    
+    private suspend fun generateSuggestions(
+        query: String,
+        results: List<SearchResult>,
+        filters: SearchFilters
+    ) {
+        val suggestions = mutableListOf<SearchSuggestion>()
+        
+        // Suggest related searches based on results
+        if (results.isNotEmpty()) {
+            // Extract common patterns
+            val commonWords = extractCommonWords(results.map { it.video.fileName })
+            commonWords.forEach { word ->
+                if (word != query && word.length > 3) {
+                    suggestions.add(
+                        SearchSuggestion(
+                            text = word,
+                            type = SuggestionType.RELATED,
+                            icon = "tag"
+                        )
+                    )
+                }
+            }
+        }
+        
+        // Suggest filters based on results
+        if (results.size > 10) {
+            val formats = results.map { it.video.fileName.substringAfterLast('.', "") }
+                .groupBy { it }
+                .filter { it.value.size > 1 }
+                .keys
+            
+            formats.forEach { format ->
+                suggestions.add(
+                    SearchSuggestion(
+                        text = "Filter by .$format",
+                        type = SuggestionType.FILTER,
+                        icon = "filter",
+                        metadata = mapOf("filter" to "format", "value" to format)
+                    )
+                )
+            }
+        }
+        
+        _suggestions.value = suggestions.take(5)
+    }
+    
+    private fun generateSmartSuggestions(
+        query: String,
+        videos: List<RecentFile>
+    ): List<SearchSuggestion> {
+        val suggestions = mutableListOf<SearchSuggestion>()
+        
+        // Date-based suggestions
+        if (query.contains("today", ignoreCase = true) || 
+            query.contains("yesterday", ignoreCase = true) ||
+            query.contains("week", ignoreCase = true)) {
+            suggestions.add(
+                SearchSuggestion(
+                    text = "Videos from this week",
+                    type = SuggestionType.SMART,
+                    icon = "calendar",
+                    metadata = mapOf("filter" to "date", "value" to "week")
+                )
+            )
+        }
+        
+        // Duration-based suggestions
+        if (query.contains("long", ignoreCase = true) || 
+            query.contains("short", ignoreCase = true)) {
+            suggestions.add(
+                SearchSuggestion(
+                    text = "Short videos (< 10 min)",
+                    type = SuggestionType.SMART,
+                    icon = "timer",
+                    metadata = mapOf("filter" to "duration", "value" to "short")
+                )
+            )
+            suggestions.add(
+                SearchSuggestion(
+                    text = "Long videos (> 30 min)",
+                    type = SuggestionType.SMART,
+                    icon = "timer",
+                    metadata = mapOf("filter" to "duration", "value" to "long")
+                )
+            )
+        }
+        
+        // Quality-based suggestions
+        if (query.contains("hd", ignoreCase = true) || 
+            query.contains("4k", ignoreCase = true) ||
+            query.contains("quality", ignoreCase = true)) {
+            suggestions.add(
+                SearchSuggestion(
+                    text = "HD videos (720p+)",
+                    type = SuggestionType.SMART,
+                    icon = "hd",
+                    metadata = mapOf("filter" to "resolution", "value" to "hd")
+                )
+            )
+        }
+        
+        return suggestions
+    }
+    
+    private fun extractCommonWords(fileNames: List<String>): List<String> {
+        val wordCounts = mutableMapOf<String, Int>()
+        
+        fileNames.forEach { fileName ->
+            val words = fileName
+                .replace(Regex("[^a-zA-Z0-9\\s]"), " ")
+                .split("\\s+".toRegex())
+                .filter { it.length > 3 }
+            
+            words.forEach { word ->
+                wordCounts[word.lowercase()] = wordCounts.getOrDefault(word.lowercase(), 0) + 1
+            }
+        }
+        
+        return wordCounts
+            .filter { it.value > fileNames.size / 3 } // Word appears in at least 1/3 of results
+            .keys
+            .sortedByDescending { wordCounts[it] }
+            .take(5)
+    }
+    
+    private suspend fun addToSearchHistory(query: String) {
+        if (query.isBlank()) return
+        
+        val history = getSearchHistory().toMutableList()
+        
+        // Remove existing entry if present
+        history.removeAll { it.query == query }
+        
+        // Add new entry at the beginning
+        history.add(0, SearchHistoryItem(query, System.currentTimeMillis()))
+        
+        // Limit history size
+        val trimmedHistory = history.take(MAX_HISTORY_ITEMS)
+        
+        // Save to preferences
+        context.dataStore.edit { preferences ->
+            preferences[SEARCH_HISTORY_KEY] = json.encodeToString(trimmedHistory)
+        }
+    }
+    
+    private suspend fun getSearchHistory(): List<SearchHistoryItem> {
+        val preferences = context.dataStore.data.first()
+        val historyJson = preferences[SEARCH_HISTORY_KEY] ?: "[]"
+        return try {
+            json.decodeFromString(historyJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    private suspend fun getRecentSearches(): List<SearchSuggestion> {
+        return getSearchHistory()
+            .take(5)
+            .map { item ->
+                SearchSuggestion(
+                    text = item.query,
+                    type = SuggestionType.HISTORY,
+                    icon = "history"
+                )
+            }
+    }
+    
+    private fun getVideoResolution(video: RecentFile): String {
+        // In a real implementation, this would extract from video metadata
+        return when {
+            video.fileName.contains("4k", ignoreCase = true) -> "4K"
+            video.fileName.contains("1080", ignoreCase = true) -> "1080p"
+            video.fileName.contains("720", ignoreCase = true) -> "720p"
+            video.fileName.contains("480", ignoreCase = true) -> "480p"
+            else -> "SD"
+        }
+    }
+    
+    private fun getVideoSource(video: RecentFile): String {
+        return when {
+            video.filePath.contains("/Download", ignoreCase = true) -> "downloads"
+            video.filePath.contains("/DCIM", ignoreCase = true) -> "camera"
+            video.filePath.contains("/WhatsApp", ignoreCase = true) -> "whatsapp"
+            video.filePath.contains("/Telegram", ignoreCase = true) -> "telegram"
+            video.filePath.startsWith("http") -> "streaming"
+            else -> "local"
+        }
+    }
+}
+
+/**
+ * Search result with relevance score
+ */
+data class SearchResult(
+    val video: RecentFile,
+    val relevanceScore: Float,
+    val matchedFields: List<String>
+)
+
+/**
+ * Search suggestion
+ */
+@Serializable
+data class SearchSuggestion(
+    val text: String,
+    val type: SuggestionType,
+    val icon: String,
+    val metadata: Map<String, String> = emptyMap()
+)
+
+/**
+ * Suggestion types
+ */
+@Serializable
+enum class SuggestionType {
+    HISTORY,
+    FILE,
+    FILTER,
+    RELATED,
+    SMART
+}
+
+/**
+ * Search filters
+ */
+@Serializable
+data class SearchFilters(
+    val minDuration: Long? = null, // in milliseconds
+    val maxDuration: Long? = null,
+    val dateRange: DateRange? = null,
+    val minFileSize: Long? = null, // in bytes
+    val maxFileSize: Long? = null,
+    val resolutions: Set<String> = emptySet(),
+    val formats: Set<String> = emptySet(),
+    val sources: Set<String> = emptySet(),
+    val favorites: Boolean = false,
+    val hasSubtitles: Boolean? = null,
+    val sortBy: SortBy = SortBy.RELEVANCE,
+    val sortOrder: SortOrder = SortOrder.DESCENDING
+)
+
+/**
+ * Date range for filtering
+ */
+@Serializable
+data class DateRange(
+    val start: Long,
+    val end: Long
+) {
+    constructor(start: Date, end: Date) : this(start.time, end.time)
+    
+    val startDate: Date get() = Date(start)
+    val endDate: Date get() = Date(end)
+}
+
+/**
+ * Sort options
+ */
+@Serializable
+enum class SortBy {
+    RELEVANCE,
+    NAME,
+    DATE,
+    SIZE,
+    DURATION,
+    PLAY_COUNT
+}
+
+@Serializable
+enum class SortOrder {
+    ASCENDING,
+    DESCENDING
+}
+
+/**
+ * Search history item
+ */
+@Serializable
+data class SearchHistoryItem(
+    val query: String,
+    val timestamp: Long
+)

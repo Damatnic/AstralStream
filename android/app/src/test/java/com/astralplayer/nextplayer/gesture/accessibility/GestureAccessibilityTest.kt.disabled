@@ -1,0 +1,204 @@
+package com.astralplayer.nextplayer.gesture.accessibility
+
+import android.content.Context
+import android.view.accessibility.AccessibilityManager
+import com.astralplayer.nextplayer.data.GestureAction
+import com.astralplayer.nextplayer.data.TouchSide
+import com.astralplayer.nextplayer.data.gesture.GestureType
+import com.astralplayer.nextplayer.data.gesture.accessibility.*
+import io.mockk.*
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
+import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+class GestureAccessibilityTest {
+    
+    private lateinit var context: Context
+    private lateinit var accessibilityManager: AccessibilityManager
+    private lateinit var gestureAccessibilityManager: GestureAccessibilityManager
+    
+    @Before
+    fun setup() {
+        context = mockk(relaxed = true)
+        accessibilityManager = mockk(relaxed = true)
+        
+        every { context.getSystemService(Context.ACCESSIBILITY_SERVICE) } returns accessibilityManager
+        every { context.packageName } returns "com.astralplayer.nextplayer"
+        
+        gestureAccessibilityManager = GestureAccessibilityManager(context)
+    }
+    
+    @Test
+    fun `test accessibility state detection`() = runTest {
+        // Setup screen reader enabled
+        every { accessibilityManager.isEnabled } returns true
+        every { accessibilityManager.isTouchExplorationEnabled } returns true
+        
+        gestureAccessibilityManager.updateAccessibilityState()
+        
+        val state = gestureAccessibilityManager.accessibilityState.value
+        assertTrue(state.isScreenReaderEnabled)
+        assertTrue(state.isAccessibilityEnabled)
+    }
+    
+    @Test
+    fun `test gesture announcements`() {
+        every { accessibilityManager.isEnabled } returns true
+        every { accessibilityManager.isTouchExplorationEnabled } returns true
+        
+        gestureAccessibilityManager.updateAccessibilityState()
+        
+        // Test seek announcement
+        gestureAccessibilityManager.announceGestureAction(
+            GestureAction.Seek(10000L)
+        )
+        
+        verify {
+            accessibilityManager.sendAccessibilityEvent(any())
+        }
+    }
+    
+    @Test
+    fun `test gesture simplification for accessibility`() {
+        every { accessibilityManager.isEnabled } returns true
+        every { accessibilityManager.isTouchExplorationEnabled } returns true
+        
+        gestureAccessibilityManager.updateAccessibilityState()
+        
+        // Complex gestures should be simplified
+        assertTrue(
+            gestureAccessibilityManager.shouldSimplifyGesture(GestureType.PINCH_ZOOM)
+        )
+        assertTrue(
+            gestureAccessibilityManager.shouldSimplifyGesture(GestureType.LONG_PRESS)
+        )
+        
+        // Simple gestures should not be simplified
+        assertFalse(
+            gestureAccessibilityManager.shouldSimplifyGesture(GestureType.SINGLE_TAP)
+        )
+    }
+    
+    @Test
+    fun `test accessibility adjusted settings`() {
+        every { accessibilityManager.isEnabled } returns true
+        every { accessibilityManager.isTouchExplorationEnabled } returns true
+        
+        gestureAccessibilityManager.updateAccessibilityState()
+        
+        val originalSensitivity = 1.0f
+        val adjustedSensitivity = gestureAccessibilityManager.getAccessibilityAdjustedSettings(
+            originalSensitivity,
+            GestureType.HORIZONTAL_SEEK
+        )
+        
+        // Sensitivity should be reduced for screen reader users
+        assertTrue(adjustedSensitivity < originalSensitivity)
+        assertEquals(0.7f, adjustedSensitivity)
+    }
+    
+    @Test
+    fun `test gesture descriptions`() {
+        val seekDescription = gestureAccessibilityManager.getGestureDescription(
+            GestureType.HORIZONTAL_SEEK
+        )
+        
+        assertEquals(
+            "Horizontal swipe to seek through video",
+            seekDescription
+        )
+        
+        val volumeDescription = gestureAccessibilityManager.getGestureDescription(
+            GestureType.VERTICAL_VOLUME
+        )
+        
+        assertEquals(
+            "Vertical swipe on right side to adjust volume",
+            volumeDescription
+        )
+    }
+    
+    @Test
+    fun `test accessible gesture input controls`() {
+        val accessibleInput = AccessibleGestureInput(context)
+        val controls = accessibleInput.createAccessibleControls()
+        
+        // Verify all controls are created
+        assertNotNull(controls.seekForward)
+        assertNotNull(controls.seekBackward)
+        assertNotNull(controls.volumeUp)
+        assertNotNull(controls.volumeDown)
+        assertNotNull(controls.brightnessUp)
+        assertNotNull(controls.brightnessDown)
+        assertNotNull(controls.playPause)
+        
+        // Test control actions
+        val seekAction = controls.seekForward.action()
+        assertTrue(seekAction is GestureAction.Seek)
+        assertEquals(10000L, (seekAction as GestureAction.Seek).deltaMs)
+    }
+    
+    @Test
+    fun `test voice command parsing`() {
+        val voiceCommands = VoiceGestureCommands()
+        
+        // Test simple commands
+        val playAction = voiceCommands.parseCommand("play")
+        assertTrue(playAction is GestureAction.TogglePlayPause)
+        
+        val volumeUpAction = voiceCommands.parseCommand("volume up")
+        assertTrue(volumeUpAction is GestureAction.VolumeChange)
+        assertEquals(0.1f, (volumeUpAction as GestureAction.VolumeChange).delta)
+        
+        // Test seek commands with time
+        val seekForward30 = voiceCommands.parseCommand("seek forward 30 seconds")
+        assertTrue(seekForward30 is GestureAction.Seek)
+        assertEquals(30000L, (seekForward30 as GestureAction.Seek).deltaMs)
+        
+        val seekBackward10 = voiceCommands.parseCommand("seek backward 10 seconds")
+        assertTrue(seekBackward10 is GestureAction.Seek)
+        assertEquals(-10000L, (seekBackward10 as GestureAction.Seek).deltaMs)
+        
+        // Test invalid command
+        val invalidAction = voiceCommands.parseCommand("invalid command")
+        assertEquals(null, invalidAction)
+    }
+    
+    @Test
+    fun `test available voice commands`() {
+        val voiceCommands = VoiceGestureCommands()
+        val availableCommands = voiceCommands.getAvailableCommands()
+        
+        assertTrue(availableCommands.contains("play"))
+        assertTrue(availableCommands.contains("pause"))
+        assertTrue(availableCommands.contains("volume up"))
+        assertTrue(availableCommands.contains("seek forward [number] seconds"))
+    }
+    
+    @Test
+    fun `test reduced motion preference`() {
+        every { accessibilityManager.isEnabled } returns true
+        every { context.resources.configuration.fontScale } returns 1.5f
+        
+        gestureAccessibilityManager.updateAccessibilityState()
+        
+        val state = gestureAccessibilityManager.accessibilityState.value
+        assertTrue(state.preferReducedMotion)
+        
+        // Horizontal seek should be simplified for reduced motion
+        assertTrue(
+            gestureAccessibilityManager.shouldSimplifyGesture(GestureType.HORIZONTAL_SEEK)
+        )
+        
+        // Sensitivity should be further reduced
+        val adjustedSensitivity = gestureAccessibilityManager.getAccessibilityAdjustedSettings(
+            1.0f,
+            GestureType.HORIZONTAL_SEEK
+        )
+        assertEquals(0.5f, adjustedSensitivity)
+    }
+}

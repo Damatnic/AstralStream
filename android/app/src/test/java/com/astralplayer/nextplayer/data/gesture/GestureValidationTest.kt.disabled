@@ -1,0 +1,123 @@
+package com.astralplayer.nextplayer.data.gesture
+
+import com.astralplayer.nextplayer.data.*
+import org.junit.Assert.*
+import org.junit.Test
+
+/**
+ * Unit tests for gesture settings validation
+ */
+class GestureValidationTest {
+    
+    @Test
+    fun `validate sensitivity bounds`() {
+        val validator = GestureSettingsValidator
+        
+        // Test seeking sensitivity
+        val seekSettings = SeekingGestureSettings(sensitivity = 5f)
+        val validatedSeek = validator.validateSeekingSettings(seekSettings)
+        assertTrue(validatedSeek.sensitivity <= 3f)
+        
+        // Test volume sensitivity
+        val volumeSettings = VolumeGestureSettings(sensitivity = -1f)
+        val validatedVolume = validator.validateVolumeSettings(volumeSettings)
+        assertTrue(validatedVolume.sensitivity >= 0.1f)
+    }
+    
+    @Test
+    fun `validate brightness range`() {
+        val validator = GestureSettingsValidator
+        
+        val brightnessSettings = BrightnessGestureSettings(
+            minimumBrightness = 0.8f,
+            maximumBrightness = 0.5f
+        )
+        val validated = validator.validateBrightnessSettings(brightnessSettings)
+        
+        assertTrue(validated.minimumBrightness < validated.maximumBrightness)
+    }
+    
+    @Test
+    fun `validate zoom range`() {
+        val validator = GestureSettingsValidator
+        
+        val zoomSettings = PinchZoomGestureSettings(
+            minZoom = 5f,
+            maxZoom = 3f
+        )
+        val validated = validator.validatePinchZoomSettings(zoomSettings)
+        
+        assertTrue(validated.minZoom < validated.maxZoom)
+        assertTrue(validated.minZoom >= 0.1f)
+        assertTrue(validated.maxZoom <= 10f)
+    }
+    
+    @Test
+    fun `validate long press speed progression`() {
+        val validator = GestureSettingsValidator
+        
+        // Empty progression should get defaults
+        val emptySettings = LongPressGestureSettings(speedProgression = emptyList())
+        val validated1 = validator.validateLongPressSettings(emptySettings)
+        assertTrue(validated1.speedProgression.isNotEmpty())
+        
+        // Out of order progression should be sorted
+        val unorderedSettings = LongPressGestureSettings(
+            speedProgression = listOf(8f, 2f, 16f, 1f, 4f)
+        )
+        val validated2 = validator.validateLongPressSettings(unorderedSettings)
+        assertEquals(listOf(1f, 2f, 4f, 8f, 16f), validated2.speedProgression)
+    }
+    
+    @Test
+    fun `validate complete settings`() {
+        val validator = GestureSettingsValidator
+        
+        val invalidSettings = EnhancedGestureSettings(
+            general = GeneralGestureSettings(
+                gestureDeadZone = -50f,
+                minimumGestureDistance = 500f
+            ),
+            seeking = SeekingGestureSettings(
+                sensitivity = 0.05f,
+                seekStepSize = 100000L
+            ),
+            doubleTap = DoubleTapGestureSettings(
+                tapTimeout = 50L,
+                seekAmount = 0L
+            )
+        )
+        
+        val validated = validator.validateSettings(invalidSettings)
+        
+        // Check all values are within bounds
+        assertTrue(validated.general.gestureDeadZone >= 0f)
+        assertTrue(validated.general.minimumGestureDistance <= 200f)
+        assertTrue(validated.seeking.sensitivity >= 0.1f)
+        assertTrue(validated.seeking.seekStepSize <= 60000L)
+        assertTrue(validated.doubleTap.tapTimeout >= 50L)
+        assertTrue(validated.doubleTap.seekAmount >= 100L)
+    }
+    
+    @Test
+    fun `validation error detection`() {
+        val validator = GestureSettingsValidator
+        
+        val invalidSettings = EnhancedGestureSettings(
+            brightness = BrightnessGestureSettings(
+                minimumBrightness = 0.8f,
+                maximumBrightness = 0.5f
+            ),
+            pinchZoom = PinchZoomGestureSettings(
+                minZoom = 5f,
+                maxZoom = 3f
+            )
+        )
+        
+        val errors = validator.getValidationErrors(invalidSettings)
+        
+        assertTrue(errors.isNotEmpty())
+        assertTrue(errors.any { it.category == "Brightness" })
+        assertTrue(errors.any { it.category == "PinchZoom" })
+    }
+}

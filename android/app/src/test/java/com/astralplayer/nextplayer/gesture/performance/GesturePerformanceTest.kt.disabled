@@ -1,0 +1,300 @@
+package com.astralplayer.nextplayer.gesture.performance
+
+import androidx.compose.ui.geometry.Offset
+import com.astralplayer.nextplayer.data.gesture.GestureType
+import com.astralplayer.nextplayer.data.gesture.performance.*
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
+import org.junit.Test
+import kotlin.system.measureTimeMillis
+import kotlin.test.*
+
+class GesturePerformanceTest {
+    
+    private lateinit var performanceOptimizer: GesturePerformanceOptimizer
+    private lateinit var testScope: TestScope
+    
+    @Before
+    fun setup() {
+        testScope = TestScope()
+        performanceOptimizer = GesturePerformanceOptimizer(testScope)
+    }
+    
+    @Test
+    fun `test gesture event throttling`() = runTest {
+        val throttler = GestureEventThrottler()
+        var eventCount = 0
+        
+        // Try to trigger 100 events rapidly
+        val executionTime = measureTimeMillis {
+            repeat(100) {
+                throttler.throttle(GestureType.HORIZONTAL_SEEK) {
+                    eventCount++
+                }
+                // Simulate 1ms between events
+                Thread.sleep(1)
+            }
+        }
+        
+        // Should throttle to ~60fps (16ms intervals)
+        val expectedEvents = (executionTime / 16).toInt()
+        assertTrue(
+            eventCount in (expectedEvents - 2)..(expectedEvents + 2),
+            "Expected around $expectedEvents events, got $eventCount"
+        )
+    }
+    
+    @Test
+    fun `test frame skip detection`() {
+        val detector = FrameSkipDetector()
+        
+        // Simulate normal frame times
+        repeat(5) {
+            assertFalse(detector.shouldSkipFrame())
+            Thread.sleep(16) // 60fps
+        }
+        
+        // Simulate slow frames
+        Thread.sleep(50) // Simulate lag
+        assertTrue(detector.shouldSkipFrame(), "Should skip frame after lag")
+    }
+    
+    @Test
+    fun `test gesture position prediction`() {
+        val predictor = GesturePredictor()
+        
+        // Add position history
+        val positions = listOf(
+            Offset(0f, 0f),
+            Offset(10f, 0f),
+            Offset(20f, 0f)
+        )
+        
+        positions.forEachIndexed { index, position ->
+            val velocity = if (index > 0) {
+                Offset((position.x - positions[index - 1].x) * 60f, 0f) // 60fps
+            } else {
+                Offset.Zero
+            }
+            
+            predictor.predictPosition(position, velocity, 0.016f)
+            Thread.sleep(16)
+        }
+        
+        // Predict next position
+        val predicted = predictor.predictPosition(
+            currentPosition = Offset(20f, 0f),
+            velocity = Offset(600f, 0f), // 10 pixels per frame at 60fps
+            deltaTime = 0.016f
+        )
+        
+        // Should predict forward movement
+        assertEquals(29.6f, predicted.x, 0.1f) // 20 + (600 * 0.016)
+    }
+    
+    @Test
+    fun `test smoothed velocity calculation`() {
+        val predictor = GesturePredictor()
+        
+        // Simulate gesture with varying speeds
+        val positions = listOf(
+            Offset(0f, 0f),
+            Offset(10f, 0f),  // Fast
+            Offset(15f, 0f),  // Slower
+            Offset(25f, 0f),  // Fast again
+            Offset(30f, 0f)   // Slower
+        )
+        
+        positions.forEach { position ->
+            predictor.predictPosition(position, Offset.Zero, 0.016f)
+            Thread.sleep(16)
+        }
+        
+        val smoothedVelocity = predictor.getSmoothedVelocity()
+        
+        // Should have positive X velocity
+        assertTrue(smoothedVelocity.x > 0, "Should have positive X velocity")
+        assertEquals(0f, smoothedVelocity.y, "Should have no Y velocity")
+    }
+    
+    @Test
+    fun `test circular buffer performance`() {
+        val buffer = CircularBuffer<Long>(100)
+        
+        // Fill buffer
+        repeat(150) { i ->
+            buffer.add(i.toLong())
+        }
+        
+        // Should maintain size limit and calculate average correctly
+        val average = buffer.average()
+        assertTrue(average > 50, "Average should be from recent values")
+    }
+    
+    @Test
+    fun `test gesture state pooling`() {
+        val pool = GestureStatePool()
+        val states = mutableListOf<GestureStatePool.GestureState>()
+        
+        // Obtain multiple states
+        repeat(15) {
+            states.add(pool.obtain())
+        }
+        
+        // Recycle half
+        repeat(7) { i ->
+            pool.recycle(states[i])
+        }
+        
+        // Obtain again - should reuse recycled objects
+        val reusedState = pool.obtain()
+        
+        // Verify state is reset
+        assertEquals(Offset.Zero, reusedState.startPosition)
+        assertEquals(0L, reusedState.startTime)
+        assertNull(reusedState.gestureType)
+    }
+    
+    @Test
+    fun `test optimized distance calculation`() {
+        val p1 = Offset(0f, 0f)
+        val p2 = Offset(3f, 4f)
+        
+        // Fast distance squared
+        val distSquared = OptimizedGestureCalculations.fastDistanceSquared(p1, p2)
+        assertEquals(25f, distSquared) // 3² + 4² = 25
+        
+        // Compare performance
+        val iterations = 100000
+        
+        val optimizedTime = measureTimeMillis {
+            repeat(iterations) {
+                OptimizedGestureCalculations.fastDistanceSquared(p1, p2)
+            }
+        }
+        
+        val standardTime = measureTimeMillis {
+            repeat(iterations) {
+                val dx = p2.x - p1.x
+                val dy = p2.y - p1.y
+                kotlin.math.sqrt((dx * dx + dy * dy).toDouble())
+            }
+        }
+        
+        assertTrue(
+            optimizedTime < standardTime,
+            "Optimized should be faster: $optimizedTime ms vs $standardTime ms"
+        )
+    }
+    
+    @Test
+    fun `test gesture direction detection`() {
+        // Test horizontal right
+        var direction = OptimizedGestureCalculations.getGestureDirection(
+            Offset(50f, 10f)
+        )
+        assertEquals(
+            OptimizedGestureCalculations.GestureDirection.RIGHT,
+            direction
+        )
+        
+        // Test vertical up
+        direction = OptimizedGestureCalculations.getGestureDirection(
+            Offset(10f, -50f)
+        )
+        assertEquals(
+            OptimizedGestureCalculations.GestureDirection.UP,
+            direction
+        )
+        
+        // Test no movement
+        direction = OptimizedGestureCalculations.getGestureDirection(
+            Offset(5f, 5f),
+            threshold = 20f
+        )
+        assertEquals(
+            OptimizedGestureCalculations.GestureDirection.NONE,
+            direction
+        )
+    }
+    
+    @Test
+    fun `test performance monitor`() = runTest {
+        val monitor = GesturePerformanceMonitor()
+        
+        // Simulate gesture
+        monitor.startGesture(GestureType.HORIZONTAL_SEEK)
+        
+        // Record frames
+        repeat(10) {
+            monitor.recordFrame()
+            Thread.sleep(16) // 60fps
+        }
+        
+        monitor.endGesture()
+        
+        // Check performance data
+        val data = monitor.performanceData.value
+        assertTrue(data.averageFrameTime > 0)
+        assertTrue(data.gesturesPerSecond > 0)
+        assertTrue(data.isPerformanceOptimal)
+        assertFalse(data.shouldReduceQuality())
+    }
+    
+    @Test
+    fun `test event batching`() {
+        val batcher = GestureEventBatcher(batchSize = 3, batchTimeoutMs = 50)
+        
+        data class TestEvent(
+            override val timestamp: Long,
+            override val priority: Int = 0
+        ) : GestureEventBatcher.BatchableEvent
+        
+        // Add events
+        assertNull(batcher.addEvent(TestEvent(1L)))
+        assertNull(batcher.addEvent(TestEvent(2L)))
+        
+        // Third event should trigger batch
+        val batch = batcher.addEvent(TestEvent(3L))
+        assertNotNull(batch)
+        assertEquals(3, batch.size)
+        
+        // Test timeout batching
+        assertNull(batcher.addEvent(TestEvent(4L)))
+        Thread.sleep(60) // Wait for timeout
+        
+        val timeoutBatch = batcher.addEvent(TestEvent(5L))
+        assertNotNull(timeoutBatch)
+        assertEquals(2, timeoutBatch.size)
+    }
+    
+    @Test
+    fun `test performance aware settings adaptation`() {
+        val adapter = PerformanceAwareSettingsAdapter()
+        val baseSettings = EnhancedGestureSettings()
+        
+        // Normal performance
+        val normalData = GesturePerformanceMonitor.PerformanceData(
+            averageFrameTime = 16f // 60fps
+        )
+        val normalSettings = adapter.adaptSettings(baseSettings, normalData)
+        assertEquals(baseSettings, normalSettings)
+        
+        // Poor performance
+        val poorData = GesturePerformanceMonitor.PerformanceData(
+            averageFrameTime = 30f // ~33fps
+        )
+        val adaptedSettings = adapter.adaptSettings(baseSettings, poorData)
+        
+        // Should reduce quality
+        assertTrue(
+            adaptedSettings.general.sensitivity < baseSettings.general.sensitivity
+        )
+        assertTrue(
+            adaptedSettings.general.swipeThreshold > baseSettings.general.swipeThreshold
+        )
+        assertFalse(adaptedSettings.seeking.enableFineSeek)
+        assertFalse(adaptedSettings.pinchZoom.smoothZoom)
+    }
+}

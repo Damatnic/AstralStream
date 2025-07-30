@@ -1,0 +1,419 @@
+package com.astralplayer.nextplayer.gesture
+
+import android.net.Uri
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.unit.dp
+import androidx.media3.common.Player
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.astralplayer.nextplayer.VideoPlayerActivity
+import com.astralplayer.nextplayer.data.*
+import com.astralplayer.nextplayer.data.gesture.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import kotlin.math.abs
+import kotlin.test.*
+
+/**
+ * Comprehensive integration tests for player-gesture interaction
+ */
+@RunWith(AndroidJUnit4::class)
+class PlayerGestureIntegrationTest {
+    
+    @get:Rule
+    val composeTestRule = createAndroidComposeRule<VideoPlayerActivity>()
+    
+    private lateinit var gestureManager: EnhancedGestureManager
+    private lateinit var playerRepository: PlayerRepository
+    private lateinit var deviceAdaptationManager: DeviceAdaptationManager
+    
+    @Before
+    fun setup() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        gestureManager = EnhancedGestureManager(context)
+        deviceAdaptationManager = DeviceAdaptationManager(context)
+        
+        composeTestRule.activityRule.scenario.onActivity { activity ->
+            playerRepository = activity.playerRepository
+        }
+    }
+    
+    @Test
+    fun testCompleteSeekWorkflow() = runTest {
+        // Load video
+        val testUri = Uri.parse("android.resource://com.astralplayer.nextplayer/raw/test_video")
+        playerRepository.playVideo(testUri)
+        
+        // Wait for video to be ready
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            runBlocking {
+                playerRepository.playerState.first().playbackState == Player.STATE_READY
+            }
+        }
+        
+        // Get initial state
+        val initialState = playerRepository.playerState.first()
+        val initialPosition = initialState.currentPosition
+        
+        // Perform series of seek gestures
+        composeTestRule.onRoot().performTouchInput {
+            // Small seek forward
+            swipeRight(
+                startX = centerX - 50f,
+                endX = centerX + 50f,
+                durationMillis = 200
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        var newPosition = playerRepository.playerState.first().currentPosition
+        assertTrue(newPosition > initialPosition, "First seek should move forward")
+        
+        // Fast seek forward
+        composeTestRule.onRoot().performTouchInput {
+            swipeRight(
+                startX = centerX - 200f,
+                endX = centerX + 200f,
+                durationMillis = 100 // Faster swipe
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        val afterFastSeek = playerRepository.playerState.first().currentPosition
+        assertTrue(afterFastSeek > newPosition, "Fast seek should move further")
+        
+        // Seek backward
+        composeTestRule.onRoot().performTouchInput {
+            swipeLeft(
+                startX = centerX + 100f,
+                endX = centerX - 100f,
+                durationMillis = 200
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        val afterBackwardSeek = playerRepository.playerState.first().currentPosition
+        assertTrue(afterBackwardSeek < afterFastSeek, "Backward seek should work")
+    }
+    
+    @Test
+    fun testVolumeAndBrightnessGestures() = runTest {
+        // Get initial states
+        val initialVolume = playerRepository.playerState.first().volume
+        val initialBrightness = playerRepository.playerState.first().brightness
+        
+        // Test volume increase (right side swipe up)
+        composeTestRule.onRoot().performTouchInput {
+            val rightX = width * 0.8f
+            swipeUp(
+                startX = rightX,
+                endX = rightX,
+                startY = centerY + 100f,
+                endY = centerY - 100f,
+                durationMillis = 300
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        val newVolume = playerRepository.playerState.first().volume
+        assertTrue(newVolume > initialVolume, "Volume should increase")
+        
+        // Test volume decrease
+        composeTestRule.onRoot().performTouchInput {
+            val rightX = width * 0.8f
+            swipeDown(
+                startX = rightX,
+                endX = rightX,
+                startY = centerY - 100f,
+                endY = centerY + 100f,
+                durationMillis = 300
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        val decreasedVolume = playerRepository.playerState.first().volume
+        assertTrue(decreasedVolume < newVolume, "Volume should decrease")
+        
+        // Test brightness increase (left side swipe up)
+        composeTestRule.onRoot().performTouchInput {
+            val leftX = width * 0.2f
+            swipeUp(
+                startX = leftX,
+                endX = leftX,
+                startY = centerY + 100f,
+                endY = centerY - 100f,
+                durationMillis = 300
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        val newBrightness = playerRepository.playerState.first().brightness
+        assertTrue(newBrightness > initialBrightness, "Brightness should increase")
+    }
+    
+    @Test
+    fun testDoubleTapSeekAccuracy() = runTest {
+        // Load video
+        val testUri = Uri.parse("android.resource://com.astralplayer.nextplayer/raw/test_video")
+        playerRepository.playVideo(testUri)
+        
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            runBlocking {
+                playerRepository.playerState.first().playbackState == Player.STATE_READY
+            }
+        }
+        
+        val initialPosition = playerRepository.playerState.first().currentPosition
+        
+        // Double tap on right side
+        composeTestRule.onRoot().performTouchInput {
+            val rightX = width * 0.8f
+            doubleClick(Offset(rightX, centerY))
+        }
+        
+        composeTestRule.waitForIdle()
+        val afterRightDoubleTap = playerRepository.playerState.first().currentPosition
+        
+        // Should seek forward by default amount (10 seconds)
+        val expectedForwardPosition = initialPosition + 10000L
+        assertEquals(
+            expectedForwardPosition,
+            afterRightDoubleTap,
+            "Right double tap should seek forward exactly 10 seconds"
+        )
+        
+        // Double tap on left side
+        composeTestRule.onRoot().performTouchInput {
+            val leftX = width * 0.2f
+            doubleClick(Offset(leftX, centerY))
+        }
+        
+        composeTestRule.waitForIdle()
+        val afterLeftDoubleTap = playerRepository.playerState.first().currentPosition
+        
+        // Should seek backward by default amount
+        val expectedBackwardPosition = afterRightDoubleTap - 10000L
+        assertEquals(
+            expectedBackwardPosition,
+            afterLeftDoubleTap,
+            "Left double tap should seek backward exactly 10 seconds"
+        )
+    }
+    
+    @Test
+    fun testLongPressSeekProgression() = runTest {
+        // Load video
+        val testUri = Uri.parse("android.resource://com.astralplayer.nextplayer/raw/test_video")
+        playerRepository.playVideo(testUri)
+        
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            runBlocking {
+                playerRepository.playerState.first().playbackState == Player.STATE_READY
+            }
+        }
+        
+        val initialPosition = playerRepository.playerState.first().currentPosition
+        
+        // Start long press on right side
+        composeTestRule.onRoot().performTouchInput {
+            val rightX = width * 0.8f
+            down(Offset(rightX, centerY))
+        }
+        
+        // Wait for long press to trigger
+        composeTestRule.waitUntil(timeoutMillis = 1000) {
+            composeTestRule.onNodeWithTag("long_press_overlay")
+                .fetchSemanticsNode()
+                .layoutInfo.isPlaced
+        }
+        
+        // Verify speed indicator shows
+        composeTestRule.onNodeWithText("2x") // Initial speed
+            .assertExists()
+        
+        // Continue holding for speed progression
+        Thread.sleep(1500) // Wait for speed to increase
+        
+        // Check if speed increased
+        composeTestRule.onAnyNode(hasText("4x") or hasText("8x"))
+            .assertExists()
+        
+        // Release
+        composeTestRule.onRoot().performTouchInput {
+            up()
+        }
+        
+        // Verify position changed significantly
+        composeTestRule.waitForIdle()
+        val finalPosition = playerRepository.playerState.first().currentPosition
+        assertTrue(
+            finalPosition > initialPosition + 20000L,
+            "Long press should seek significantly"
+        )
+    }
+    
+    @Test
+    fun testGestureConflictHandling() = runTest {
+        // Try diagonal swipe that could be interpreted as both horizontal and vertical
+        var gestureCompleted = false
+        
+        composeTestRule.onRoot().performTouchInput {
+            down(Offset(centerX - 100f, centerY))
+            
+            // Move diagonally
+            moveBy(Offset(100f, 50f)) // More horizontal than vertical
+            
+            up()
+            gestureCompleted = true
+        }
+        
+        assertTrue(gestureCompleted, "Gesture should complete without conflict")
+        
+        // Verify only one gesture type was triggered
+        val lastAction = runBlocking {
+            gestureManager.lastGestureAction.first()
+        }
+        
+        // Should resolve to horizontal seek (dominant direction)
+        assertTrue(
+            lastAction is GestureAction.Seek,
+            "Diagonal gesture should resolve to seek"
+        )
+    }
+    
+    @Test
+    fun testGestureSettingsApplication() = runTest {
+        // Update gesture settings
+        val customSettings = EnhancedGestureSettings(
+            seeking = SeekingGestureSettings(
+                seekDuration = 30f, // 30 seconds instead of default 60
+                seekSensitivity = 2.0f // Double sensitivity
+            )
+        )
+        gestureManager.updateSettings(customSettings)
+        
+        // Load video
+        val testUri = Uri.parse("android.resource://com.astralplayer.nextplayer/raw/test_video")
+        playerRepository.playVideo(testUri)
+        
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            runBlocking {
+                playerRepository.playerState.first().playbackState == Player.STATE_READY
+            }
+        }
+        
+        val initialPosition = playerRepository.playerState.first().currentPosition
+        
+        // Perform small swipe
+        composeTestRule.onRoot().performTouchInput {
+            swipeRight(
+                startX = centerX - 20f,
+                endX = centerX + 20f,
+                durationMillis = 200
+            )
+        }
+        
+        composeTestRule.waitForIdle()
+        val newPosition = playerRepository.playerState.first().currentPosition
+        
+        // With double sensitivity and half duration, seek should be different
+        val seekAmount = newPosition - initialPosition
+        assertTrue(
+            seekAmount > 0 && seekAmount < 10000L,
+            "Custom settings should affect seek behavior"
+        )
+    }
+    
+    @Test
+    fun testOrientationAwareGestures() = runTest {
+        // This test would require device rotation capability
+        // For now, test that gesture zones adapt to screen dimensions
+        
+        val screenWidth = composeTestRule.onRoot().getBoundsInRoot().width
+        val screenHeight = composeTestRule.onRoot().getBoundsInRoot().height
+        
+        // Test volume gesture in different screen positions
+        val positions = listOf(
+            Offset(screenWidth.toPx() * 0.9f, screenHeight.toPx() * 0.5f), // Far right
+            Offset(screenWidth.toPx() * 0.7f, screenHeight.toPx() * 0.5f), // Near right edge
+            Offset(screenWidth.toPx() * 0.5f, screenHeight.toPx() * 0.5f), // Center
+        )
+        
+        positions.forEach { position ->
+            composeTestRule.onRoot().performTouchInput {
+                down(position)
+                moveBy(Offset(0f, -100f)) // Swipe up
+                up()
+            }
+            
+            composeTestRule.waitForIdle()
+            
+            val lastAction = runBlocking {
+                gestureManager.lastGestureAction.first()
+            }
+            
+            // Verify appropriate gesture based on position
+            when {
+                position.x > screenWidth.toPx() * 0.67f -> {
+                    assertTrue(
+                        lastAction is GestureAction.VolumeChange,
+                        "Right side should trigger volume"
+                    )
+                }
+                position.x < screenWidth.toPx() * 0.33f -> {
+                    assertTrue(
+                        lastAction is GestureAction.BrightnessChange,
+                        "Left side should trigger brightness"
+                    )
+                }
+            }
+        }
+    }
+    
+    @Test
+    fun testGestureOverlayVisibility() = runTest {
+        // Perform volume gesture
+        composeTestRule.onRoot().performTouchInput {
+            val rightX = width * 0.8f
+            swipeUp(
+                startX = rightX,
+                endX = rightX,
+                startY = centerY + 50f,
+                endY = centerY - 50f,
+                durationMillis = 200
+            )
+        }
+        
+        // Check volume overlay appears
+        composeTestRule.onNodeWithTag("volume_overlay")
+            .assertExists()
+            .assertIsDisplayed()
+        
+        // Wait for overlay to auto-hide
+        composeTestRule.waitUntil(timeoutMillis = 3000) {
+            !composeTestRule.onNodeWithTag("volume_overlay")
+                .fetchSemanticsNode()
+                .layoutInfo.isPlaced
+        }
+        
+        // Perform seek gesture
+        composeTestRule.onRoot().performTouchInput {
+            swipeRight(
+                startX = centerX - 50f,
+                endX = centerX + 50f,
+                durationMillis = 200
+            )
+        }
+        
+        // Check seek overlay appears
+        composeTestRule.onNodeWithTag("seek_preview_overlay")
+            .assertExists()
+    }
+}

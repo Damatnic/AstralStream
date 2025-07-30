@@ -1,0 +1,28 @@
+package com.astralplayer.nextplayer.data
+
+import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Database(
+    entities = [
+        RecentFile::class
+    ],
+    version = 1,
+    exportSchema = true
+)
+abstract class AstralVuDatabase : RoomDatabase() {
+    
+    abstract fun recentFileDao(): RecentFileDao
+    
+    companion object {
+        const val DATABASE_NAME = "astral_vu_database"
+        
+        // Migration from version 1 to 2 (when we add more entities)
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Migration logic will be added when we expand the database
+            }
+        }
+    }
+}

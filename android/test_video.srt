@@ -1,0 +1,19 @@
+1
+00:00:00,000 --> 00:00:05,000
+Welcome to Astral-Vu Video Player
+Subtitle support is now working!
+
+2
+00:00:05,500 --> 00:00:10,000
+This is a test subtitle file
+to verify the subtitle parsing functionality
+
+3
+00:00:10,500 --> 00:00:15,000
+You can load SRT, VTT, and ASS/SSA subtitle files
+They will automatically sync with your video
+
+4
+00:00:15,500 --> 00:00:20,000
+Enjoy watching videos with subtitles!
+Thank you for using Astral-Vu

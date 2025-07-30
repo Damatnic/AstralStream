@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "Bash(.gradlew.bat assembleDebug:*)",
+      "Bash(gradlew.bat assembleDebug:*)",
+      "Bash(adb install:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:)",
+      "Bash(.gradlew assembleDebug)",
+      "Bash(adb:*)",
+      "Bash(.gradlew:*)",
+      "Bash(rm:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(gradlew.bat :app:compileDebugKotlin:*)",
+      "Bash(gradlew.bat test:*)",
+      "Bash(gradlew.bat generateProductionBuilds:*)",
+      "Bash(keytool:*)",
+      "Bash(dir)",
+      "Bash(dir app-debug.apk)",
+      "Bash(grep:*)",
+      "Bash(gradlew:*)",
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(mv:*)",
+      "Bash(git add:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git checkout:*)"
+    ],
+    "deny": []
+  }
+}

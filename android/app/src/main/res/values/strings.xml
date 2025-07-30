@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Astral Player</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stop</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="settings">Settings</string>
+    <string name="recent_files">Recent Files</string>
+    <string name="all_videos">All Videos</string>
+    <string name="folders">Folders</string>
+    <string name="playlists">Playlists</string>
+    <string name="search">Search</string>
+    <string name="no_videos_found">No videos found</string>
+    <string name="no_recent_files">No recent files</string>
+    <string name="video_player">Video Player</string>
+    <string name="subtitles">Subtitles</string>
+    <string name="audio_track">Audio Track</string>
+    <string name="playback_speed">Playback Speed</string>
+    <string name="aspect_ratio">Aspect Ratio</string>
+    <string name="brightness">Brightness</string>
+    <string name="volume">Volume</string>
+    <string name="gesture_settings">Gesture Settings</string>
+    <string name="enable_gestures">Enable Gestures</string>
+    <string name="long_press_seek">Long Press Seek</string>
+    <string name="double_tap_seek">Double Tap Seek</string>
+    <string name="swipe_volume">Swipe for Volume</string>
+    <string name="swipe_brightness">Swipe for Brightness</string>
+    <string name="hls_test">HLS Streaming Test</string>
+    <string name="enter_hls_url">Enter HLS URL</string>
+    <string name="start_playback">Start Playback</string>
+    <string name="error_invalid_url">Invalid URL</string>
+    <string name="error_playback_failed">Playback failed</string>
+    <string name="loading">Loading...</string>
+</resources>

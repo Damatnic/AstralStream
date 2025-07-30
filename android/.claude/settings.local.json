@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "Bash(mkdir:*)",
+      "Bash(.gradlew assembleDebug)",
+      "Bash(adb:*)",
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(mv:*)",
+      "Bash(rd:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(timeout:*)",
+      "Bash(set JAVA_HOME=C:Program FilesAndroidAndroid Studiojbr)",
+      "Bash(dir:*)",
+      "Bash(cmd:*)",
+      "Bash(gradle :app:kaptGenerateStubsDebugKotlin:*)",
+      "Bash(gradle:*)",
+      "Bash(powershell:*)",
+      "Bash(true)",
+      "Bash(cp:*)",
+      "Bash(move \"app\\src\\main\\java\\com\\astralplayer\\nextplayer\\feature\\player\\gestures\\WorkingGestureHandler.kt\" \"Gesture Fixes\\backup\"\")",
+      "Bash(move:*)"
+    ],
+    "deny": []
+  }
+}

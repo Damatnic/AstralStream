@@ -1,0 +1,102 @@
+package com.astralplayer.nextplayer.feature.flags
+
+import android.content.Context
+import androidx.compose.runtime.*
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+/**
+ * Feature Flag Helper Functions
+ * Provides easy access to feature flags throughout the app
+ */
+object FeatureFlags {
+    private var manager: FeatureFlagManager? = null
+    
+    fun initialize(context: Context) {
+        manager = FeatureFlagManager(context)
+    }
+    
+    fun isEnabled(feature: Feature): Boolean {
+        return manager?.isFeatureEnabled(feature) ?: false
+    }
+    
+    fun getManager(): FeatureFlagManager? = manager
+}
+
+/**
+ * Compose helper for feature flags
+ */
+@Composable
+fun rememberFeatureFlag(feature: Feature): Boolean {
+    val manager = FeatureFlags.getManager()
+    
+    return if (manager != null) {
+        val flags by manager.featureFlags.collectAsState()
+        manager.isFeatureEnabled(feature)
+    } else {
+        false
+    }
+}
+
+/**
+ * Composable that only renders content if feature is enabled
+ */
+@Composable
+fun FeatureGate(
+    feature: Feature,
+    content: @Composable () -> Unit
+) {
+    val isEnabled = rememberFeatureFlag(feature)
+    
+    if (isEnabled) {
+        content()
+    }
+}
+
+/**
+ * Composable that renders different content based on feature flag
+ */
+@Composable
+fun FeatureSwitch(
+    feature: Feature,
+    enabledContent: @Composable () -> Unit,
+    disabledContent: (@Composable () -> Unit)? = null
+) {
+    val isEnabled = rememberFeatureFlag(feature)
+    
+    if (isEnabled) {
+        enabledContent()
+    } else {
+        disabledContent?.invoke()
+    }
+}
+
+/**
+ * Extension function for easy feature checking
+ */
+fun Context.isFeatureEnabled(feature: Feature): Boolean {
+    return FeatureFlags.isEnabled(feature)
+}
+
+/**
+ * Usage examples in Compose UI:
+ * 
+ * // Simple feature gate
+ * FeatureGate(Feature.VOICE_CONTROL) {
+ *     VoiceControlButton()
+ * }
+ * 
+ * // Feature switch with fallback
+ * FeatureSwitch(
+ *     feature = Feature.AI_SUBTITLES,
+ *     enabledContent = { AISubtitleButton() },
+ *     disabledContent = { RegularSubtitleButton() }
+ * )
+ * 
+ * // Direct flag checking
+ * val hasAdvancedSearch = rememberFeatureFlag(Feature.ADVANCED_SEARCH)
+ * if (hasAdvancedSearch) {
+ *     // Show advanced search UI
+ * }
+ */

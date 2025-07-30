@@ -1,0 +1,203 @@
+package com.astralplayer.nextplayer.data
+
+import com.astralplayer.nextplayer.BaseUnitTest
+import com.astralplayer.nextplayer.data.database.RecentFileEntity
+import com.astralplayer.nextplayer.data.database.RecentFilesDao
+import com.astralplayer.nextplayer.di.TestAppModule
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+import org.mockito.Mock
+import org.mockito.Mockito.*
+
+class RecentFilesRepositoryTest : BaseUnitTest() {
+    
+    @Mock
+    private lateinit var mockDao: RecentFilesDao
+    
+    private lateinit var repository: RecentFilesRepository
+    
+    @Before
+    override fun setUp() {
+        super.setUp()
+        repository = RecentFilesRepository(mockDao)
+    }
+    
+    @Test
+    fun `getRecentFiles returns mapped entities from dao`() = runTest {
+        // Given
+        val entities = listOf(
+            RecentFileEntity(
+                id = "1",
+                uri = "content://test1.mp4",
+                title = "Test Video 1",
+                duration = 120000L,
+                lastPosition = 30000L,
+                lastPlayedTime = System.currentTimeMillis()
+            ),
+            RecentFileEntity(
+                id = "2",
+                uri = "content://test2.mp4",
+                title = "Test Video 2",
+                duration = 180000L,
+                lastPosition = 60000L,
+                lastPlayedTime = System.currentTimeMillis() - 1000L
+            )
+        )
+        `when`(mockDao.getAllRecentFiles()).thenReturn(flowOf(entities))
+        
+        // When
+        val result = repository.getRecentFiles().first()
+        
+        // Then
+        assertEquals(2, result.size)
+        assertEquals("Test Video 1", result[0].title)
+        assertEquals("Test Video 2", result[1].title)
+        assertEquals(120000L, result[0].duration)
+        assertEquals(180000L, result[1].duration)
+    }
+    
+    @Test
+    fun `addRecentFile inserts entity with correct data`() = runTest {
+        // Given
+        val uri = "content://test.mp4"
+        val title = "Test Video"
+        val duration = 120000L
+        val lastPosition = 30000L
+        
+        // When
+        repository.addRecentFile(
+            uri = uri,
+            title = title,
+            duration = duration,
+            lastPosition = lastPosition
+        )
+        
+        // Then
+        verify(mockDao).insertRecentFile(argThat { entity ->
+            entity.uri == uri &&
+            entity.title == title &&
+            entity.duration == duration &&
+            entity.lastPosition == lastPosition &&
+            entity.playCount == 1
+        })
+    }
+    
+    @Test
+    fun `updateLastPosition calls dao with correct parameters`() = runTest {
+        // Given
+        val id = "test-id"
+        val position = 45000L
+        
+        // When
+        repository.updateLastPosition(id, position)
+        
+        // Then
+        verify(mockDao).updateLastPosition(id, position)
+    }
+    
+    @Test
+    fun `incrementPlayCount calls dao with correct id`() = runTest {
+        // Given
+        val id = "test-id"
+        
+        // When
+        repository.incrementPlayCount(id)
+        
+        // Then
+        verify(mockDao).incrementPlayCount(eq(id), any())
+    }
+    
+    @Test
+    fun `toggleFavorite updates entity favorite status`() = runTest {
+        // Given
+        val id = "test-id"
+        val entity = RecentFileEntity(
+            id = id,
+            uri = "content://test.mp4",
+            title = "Test Video",
+            duration = 120000L,
+            lastPosition = 30000L,
+            lastPlayedTime = System.currentTimeMillis(),
+            isFavorite = false
+        )
+        `when`(mockDao.getRecentFileById(id)).thenReturn(entity)
+        
+        // When
+        repository.toggleFavorite(id)
+        
+        // Then
+        verify(mockDao).updateRecentFile(argThat { updatedEntity ->
+            updatedEntity.id == id && updatedEntity.isFavorite == true
+        })
+    }
+    
+    @Test
+    fun `removeRecentFile deletes entity when found`() = runTest {
+        // Given
+        val id = "test-id"
+        val entity = RecentFileEntity(
+            id = id,
+            uri = "content://test.mp4",
+            title = "Test Video",
+            duration = 120000L,
+            lastPosition = 30000L,
+            lastPlayedTime = System.currentTimeMillis()
+        )
+        `when`(mockDao.getRecentFileById(id)).thenReturn(entity)
+        
+        // When
+        repository.removeRecentFile(id)
+        
+        // Then
+        verify(mockDao).deleteRecentFile(entity)
+    }
+    
+    @Test
+    fun `clearAllHistory calls dao deleteOldFiles with current time`() = runTest {
+        // When
+        repository.clearAllHistory()
+        
+        // Then
+        verify(mockDao).deleteOldFiles(any())
+    }
+    
+    @Test
+    fun `getRecentFileById returns mapped entity when found`() = runTest {
+        // Given
+        val id = "test-id"
+        val entity = RecentFileEntity(
+            id = id,
+            uri = "content://test.mp4",
+            title = "Test Video",
+            duration = 120000L,
+            lastPosition = 30000L,
+            lastPlayedTime = System.currentTimeMillis()
+        )
+        `when`(mockDao.getRecentFileById(id)).thenReturn(entity)
+        
+        // When
+        val result = repository.getRecentFileById(id)
+        
+        // Then
+        assertNotNull(result)
+        assertEquals(id, result?.id)
+        assertEquals("Test Video", result?.title)
+        assertEquals(120000L, result?.duration)
+    }
+    
+    @Test
+    fun `getRecentFileById returns null when not found`() = runTest {
+        // Given
+        val id = "non-existent-id"
+        `when`(mockDao.getRecentFileById(id)).thenReturn(null)
+        
+        // When
+        val result = repository.getRecentFileById(id)
+        
+        // Then
+        assertNull(result)
+    }
+}

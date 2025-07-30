@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme -->
+    <style name="Theme.AstralPlayer" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/cosmic_blue</item>
+        <item name="colorPrimaryVariant">@color/cosmic_blue_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/cosmic_purple</item>
+        <item name="colorSecondaryVariant">@color/cosmic_purple_dark</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:statusBarColor">@color/cosmic_blue_dark</item>
+    </style>
+
+    <!-- Splash screen theme -->
+    <style name="Theme.AstralPlayer.SplashScreen" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/cosmic_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <item name="postSplashScreenTheme">@style/Theme.AstralPlayer</item>
+    </style>
+
+    <!-- Fullscreen theme for video playback -->
+    <style name="Theme.AstralPlayer.Fullscreen" parent="Theme.AstralPlayer">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

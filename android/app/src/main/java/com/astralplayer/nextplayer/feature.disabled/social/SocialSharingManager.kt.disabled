@@ -1,0 +1,665 @@
+package com.astralplayer.nextplayer.feature.social
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.core.content.FileProvider
+import com.astralplayer.nextplayer.data.RecentFile
+import com.astralplayer.nextplayer.feature.playlist.Playlist
+import com.astralplayer.nextplayer.data.PlaylistVideo
+import com.astralplayer.nextplayer.utils.ThumbnailGenerator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+
+/**
+ * Social Sharing Manager
+ * Handles sharing videos, playlists, and collaborative features
+ */
+class SocialSharingManager(
+    private val context: Context,
+    private val thumbnailGenerator: ThumbnailGenerator
+) {
+    private val json = Json { 
+        prettyPrint = true
+        ignoreUnknownKeys = true
+    }
+    
+    private val _sharedLinks = MutableStateFlow<List<SharedLink>>(emptyList())
+    val sharedLinks: StateFlow<List<SharedLink>> = _sharedLinks
+    
+    private val _collaborativePlaylists = MutableStateFlow<List<CollaborativePlaylist>>(emptyList())
+    val collaborativePlaylists: StateFlow<List<CollaborativePlaylist>> = _collaborativePlaylists
+    
+    /**
+     * Share a video with social media apps
+     */
+    suspend fun shareVideo(
+        video: RecentFile,
+        shareOptions: ShareOptions = ShareOptions()
+    ) {
+        withContext(Dispatchers.IO) {
+            val shareIntent = when (shareOptions.shareType) {
+                ShareType.LINK -> createLinkShareIntent(video, shareOptions)
+                ShareType.FILE -> createFileShareIntent(video, shareOptions)
+                ShareType.PREVIEW -> createPreviewShareIntent(video, shareOptions)
+            }
+            
+            context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+        }
+    }
+    
+    /**
+     * Share a playlist
+     */
+    suspend fun sharePlaylist(
+        playlist: Playlist,
+        videos: List<PlaylistVideo>,
+        shareOptions: PlaylistShareOptions = PlaylistShareOptions()
+    ) {
+        withContext(Dispatchers.IO) {
+            val playlistData = createPlaylistShareData(playlist, videos)
+            
+            when (shareOptions.format) {
+                PlaylistFormat.M3U -> shareAsM3U(playlistData, playlist.name)
+                PlaylistFormat.JSON -> shareAsJSON(playlistData, playlist.name)
+                PlaylistFormat.ASTRAL -> shareAsAstralPlaylist(playlistData, playlist.name)
+                PlaylistFormat.SOCIAL -> shareToSocialPlatform(playlistData, shareOptions)
+            }
+        }
+    }
+    
+    /**
+     * Create a collaborative playlist
+     */
+    suspend fun createCollaborativePlaylist(
+        playlist: Playlist,
+        videos: List<PlaylistVideo>,
+        collaborativeOptions: CollaborativeOptions
+    ): CollaborativePlaylist {
+        return withContext(Dispatchers.IO) {
+            val shareCode = generateShareCode()
+            val collaborativePlaylist = CollaborativePlaylist(
+                id = UUID.randomUUID().toString(),
+                shareCode = shareCode,
+                originalPlaylist = playlist,
+                videos = videos.toMutableList(),
+                owner = collaborativeOptions.ownerName,
+                collaborators = mutableListOf(),
+                permissions = collaborativeOptions.permissions,
+                createdAt = System.currentTimeMillis(),
+                lastModified = System.currentTimeMillis(),
+                syncEnabled = collaborativeOptions.syncEnabled
+            )
+            
+            // Save to shared playlists
+            _collaborativePlaylists.value = _collaborativePlaylists.value + collaborativePlaylist
+            
+            // Generate QR code if requested
+            if (collaborativeOptions.generateQR) {
+                generateQRCode(shareCode)
+            }
+            
+            collaborativePlaylist
+        }
+    }
+    
+    /**
+     * Join a collaborative playlist
+     */
+    suspend fun joinCollaborativePlaylist(
+        shareCode: String,
+        userName: String
+    ): CollaborativePlaylist? {
+        return withContext(Dispatchers.IO) {
+            // In a real implementation, this would connect to a server
+            // For demo purposes, we'll simulate finding a playlist
+            _collaborativePlaylists.value.find { it.shareCode == shareCode }?.let { playlist ->
+                playlist.collaborators.add(
+                    Collaborator(
+                        id = UUID.randomUUID().toString(),
+                        name = userName,
+                        joinedAt = System.currentTimeMillis(),
+                        permissions = playlist.permissions.defaultPermissions
+                    )
+                )
+                playlist
+            }
+        }
+    }
+    
+    /**
+     * Generate video preview for sharing
+     */
+    suspend fun generateVideoPreview(
+        video: RecentFile,
+        duration: Int = 30, // seconds
+        quality: PreviewQuality = PreviewQuality.MEDIUM
+    ): File {
+        return withContext(Dispatchers.IO) {
+            val outputFile = File(context.cacheDir, "preview_${video.id}.mp4")
+            
+            // In a real implementation, this would use FFmpeg to create a preview
+            // For now, we'll simulate it
+            outputFile.createNewFile()
+            outputFile
+        }
+    }
+    
+    /**
+     * Share video timestamp/moment
+     */
+    suspend fun shareMoment(
+        video: RecentFile,
+        timestamp: Long,
+        note: String? = null,
+        includeThumbnail: Boolean = true
+    ) {
+        withContext(Dispatchers.IO) {
+            val shareText = buildString {
+                append("Check out this moment in \"${video.fileName}\"")
+                append("\n")
+                append("Timestamp: ${formatTimestamp(timestamp)}")
+                if (note != null) {
+                    append("\n")
+                    append("Note: $note")
+                }
+                append("\n\n")
+                append("Shared via AstralStream")
+            }
+            
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = if (includeThumbnail) "image/*" else "text/plain"
+                putExtra(Intent.EXTRA_TEXT, shareText)
+                
+                if (includeThumbnail) {
+                    val thumbnail = thumbnailGenerator.generateThumbnailAtTime(
+                        videoPath = video.filePath,
+                        timeUs = timestamp * 1000
+                    )
+                    thumbnail?.let {
+                        putExtra(Intent.EXTRA_STREAM, saveThumbnailToCache(it, video.id))
+                    }
+                }
+            }
+            
+            context.startActivity(Intent.createChooser(shareIntent, "Share moment"))
+        }
+    }
+    
+    /**
+     * Create watch party
+     */
+    suspend fun createWatchParty(
+        video: RecentFile,
+        partyOptions: WatchPartyOptions
+    ): WatchParty {
+        return withContext(Dispatchers.IO) {
+            val partyCode = generatePartyCode()
+            val watchParty = WatchParty(
+                id = UUID.randomUUID().toString(),
+                partyCode = partyCode,
+                video = video,
+                host = partyOptions.hostName,
+                participants = mutableListOf(),
+                startTime = partyOptions.scheduledTime ?: System.currentTimeMillis(),
+                syncPlayback = partyOptions.syncPlayback,
+                chatEnabled = partyOptions.chatEnabled,
+                maxParticipants = partyOptions.maxParticipants,
+                isPrivate = partyOptions.isPrivate
+            )
+            
+            // Generate invite link
+            val inviteLink = generateInviteLink(partyCode)
+            watchParty.inviteLink = inviteLink
+            
+            watchParty
+        }
+    }
+    
+    // Private helper functions
+    
+    private suspend fun createLinkShareIntent(
+        video: RecentFile,
+        options: ShareOptions
+    ): Intent {
+        val shareLink = generateShareLink(video)
+        val shareText = buildString {
+            if (options.includeTitle) {
+                append("${video.fileName}\n")
+            }
+            append(shareLink)
+            if (options.includeDescription) {
+                append("\n\n${options.customDescription ?: "Shared via AstralStream"}")
+            }
+        }
+        
+        return Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+    }
+    
+    private suspend fun createFileShareIntent(
+        video: RecentFile,
+        options: ShareOptions
+    ): Intent {
+        val videoUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            File(video.filePath)
+        )
+        
+        return Intent(Intent.ACTION_SEND).apply {
+            type = "video/*"
+            putExtra(Intent.EXTRA_STREAM, videoUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            
+            if (options.includeTitle) {
+                putExtra(Intent.EXTRA_SUBJECT, video.fileName)
+            }
+            if (options.includeDescription) {
+                putExtra(Intent.EXTRA_TEXT, options.customDescription ?: "Shared via AstralStream")
+            }
+        }
+    }
+    
+    private suspend fun createPreviewShareIntent(
+        video: RecentFile,
+        options: ShareOptions
+    ): Intent {
+        val previewFile = generateVideoPreview(
+            video,
+            duration = options.previewDuration ?: 30,
+            quality = options.previewQuality ?: PreviewQuality.MEDIUM
+        )
+        
+        val previewUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            previewFile
+        )
+        
+        return Intent(Intent.ACTION_SEND).apply {
+            type = "video/*"
+            putExtra(Intent.EXTRA_STREAM, previewUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_TEXT, "Preview of ${video.fileName}\nShared via AstralStream")
+        }
+    }
+    
+    private fun createPlaylistShareData(
+        playlist: Playlist,
+        videos: List<PlaylistVideo>
+    ): PlaylistShareData {
+        return PlaylistShareData(
+            name = playlist.name,
+            description = playlist.description,
+            createdDate = playlist.createdDate,
+            videos = videos.map { video ->
+                VideoShareData(
+                    title = video.title,
+                    path = video.path,
+                    duration = video.duration,
+                    addedDate = video.addedDate
+                )
+            }
+        )
+    }
+    
+    private suspend fun shareAsM3U(data: PlaylistShareData, playlistName: String) {
+        val m3uContent = buildString {
+            appendLine("#EXTM3U")
+            appendLine("#PLAYLIST:$playlistName")
+            data.videos.forEach { video ->
+                appendLine("#EXTINF:${video.duration / 1000},${video.title}")
+                appendLine(video.path)
+            }
+        }
+        
+        val file = File(context.cacheDir, "${playlistName.replace(" ", "_")}.m3u")
+        file.writeText(m3uContent)
+        
+        shareFile(file, "audio/x-mpegurl", "Share playlist")
+    }
+    
+    private suspend fun shareAsJSON(data: PlaylistShareData, playlistName: String) {
+        val jsonContent = json.encodeToString(data)
+        val file = File(context.cacheDir, "${playlistName.replace(" ", "_")}.json")
+        file.writeText(jsonContent)
+        
+        shareFile(file, "application/json", "Share playlist")
+    }
+    
+    private suspend fun shareAsAstralPlaylist(data: PlaylistShareData, playlistName: String) {
+        val astralData = AstralPlaylistData(
+            version = "1.0",
+            appVersion = "2.0.0",
+            playlist = data,
+            metadata = PlaylistMetadata(
+                shareDate = System.currentTimeMillis(),
+                shareCode = generateShareCode(),
+                thumbnails = data.videos.take(4).map { video ->
+                    // Generate thumbnails for first 4 videos
+                    thumbnailGenerator.generateThumbnail(video.path)?.let {
+                        encodeBitmapToBase64(it)
+                    } ?: ""
+                }
+            )
+        )
+        
+        val file = File(context.cacheDir, "${playlistName.replace(" ", "_")}.astral")
+        file.writeText(json.encodeToString(astralData))
+        
+        shareFile(file, "application/octet-stream", "Share AstralStream playlist")
+    }
+    
+    private suspend fun shareToSocialPlatform(
+        data: PlaylistShareData,
+        options: PlaylistShareOptions
+    ) {
+        val shareText = buildString {
+            append("🎬 Check out my playlist: ${data.name}\n")
+            append("📋 ${data.videos.size} videos\n")
+            append("⏱️ Total duration: ${formatDuration(data.videos.sumOf { it.duration })}\n")
+            if (data.description.isNotEmpty()) {
+                append("\n${data.description}\n")
+            }
+            append("\n#AstralStream #VideoPlaylist")
+        }
+        
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            
+            // Add platform-specific extras
+            when (options.targetPlatform) {
+                SocialPlatform.TWITTER -> {
+                    `package` = "com.twitter.android"
+                }
+                SocialPlatform.FACEBOOK -> {
+                    `package` = "com.facebook.katana"
+                }
+                SocialPlatform.INSTAGRAM -> {
+                    `package` = "com.instagram.android"
+                }
+                SocialPlatform.WHATSAPP -> {
+                    `package` = "com.whatsapp"
+                }
+                else -> {}
+            }
+        }
+        
+        try {
+            context.startActivity(shareIntent)
+        } catch (e: Exception) {
+            // Fallback to chooser if specific app not found
+            context.startActivity(Intent.createChooser(shareIntent, "Share playlist"))
+        }
+    }
+    
+    private fun shareFile(file: File, mimeType: String, title: String) {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+        
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        
+        context.startActivity(Intent.createChooser(shareIntent, title))
+    }
+    
+    private fun generateShareCode(): String {
+        return UUID.randomUUID().toString().take(8).uppercase()
+    }
+    
+    private fun generatePartyCode(): String {
+        return (1..6).map { ('A'..'Z').random() }.joinToString("")
+    }
+    
+    private fun generateShareLink(video: RecentFile): String {
+        val shareId = UUID.randomUUID().toString()
+        _sharedLinks.value = _sharedLinks.value + SharedLink(
+            id = shareId,
+            videoId = video.id.toString(),
+            videoTitle = video.fileName,
+            createdAt = System.currentTimeMillis(),
+            expiresAt = System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000) // 7 days
+        )
+        return "https://astralstream.app/share/$shareId"
+    }
+    
+    private fun generateInviteLink(partyCode: String): String {
+        return "https://astralstream.app/party/$partyCode"
+    }
+    
+    private suspend fun generateQRCode(code: String): Bitmap? {
+        // In a real implementation, use a QR code library
+        return null
+    }
+    
+    private suspend fun saveThumbnailToCache(bitmap: Bitmap, videoId: Long): Uri {
+        val file = File(context.cacheDir, "moment_${videoId}_${System.currentTimeMillis()}.jpg")
+        file.outputStream().use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+    }
+    
+    private fun encodeBitmapToBase64(bitmap: Bitmap): String {
+        val outputStream = java.io.ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+        return android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.DEFAULT)
+    }
+    
+    private fun formatTimestamp(millis: Long): String {
+        val seconds = millis / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        
+        return when {
+            hours > 0 -> String.format("%02d:%02d:%02d", hours, minutes % 60, seconds % 60)
+            else -> String.format("%02d:%02d", minutes, seconds % 60)
+        }
+    }
+    
+    private fun formatDuration(millis: Long): String {
+        val seconds = millis / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        
+        return when {
+            hours > 0 -> "${hours}h ${minutes % 60}m"
+            else -> "${minutes}m"
+        }
+    }
+}
+
+// Data classes
+
+@Serializable
+data class ShareOptions(
+    val shareType: ShareType = ShareType.LINK,
+    val includeTitle: Boolean = true,
+    val includeDescription: Boolean = true,
+    val customDescription: String? = null,
+    val previewDuration: Int? = null,
+    val previewQuality: PreviewQuality? = null
+)
+
+@Serializable
+enum class ShareType {
+    LINK,
+    FILE,
+    PREVIEW
+}
+
+@Serializable
+enum class PreviewQuality {
+    LOW,
+    MEDIUM,
+    HIGH
+}
+
+@Serializable
+data class PlaylistShareOptions(
+    val format: PlaylistFormat = PlaylistFormat.ASTRAL,
+    val targetPlatform: SocialPlatform? = null,
+    val includeMetadata: Boolean = true
+)
+
+@Serializable
+enum class PlaylistFormat {
+    M3U,
+    JSON,
+    ASTRAL,
+    SOCIAL
+}
+
+@Serializable
+enum class SocialPlatform {
+    TWITTER,
+    FACEBOOK,
+    INSTAGRAM,
+    WHATSAPP,
+    TELEGRAM,
+    OTHER
+}
+
+@Serializable
+data class CollaborativeOptions(
+    val ownerName: String,
+    val permissions: CollaborativePermissions,
+    val syncEnabled: Boolean = true,
+    val generateQR: Boolean = false
+)
+
+@Serializable
+data class CollaborativePermissions(
+    val allowAdd: Boolean = true,
+    val allowRemove: Boolean = false,
+    val allowReorder: Boolean = true,
+    val defaultPermissions: Set<Permission> = setOf(Permission.VIEW, Permission.ADD)
+)
+
+@Serializable
+enum class Permission {
+    VIEW,
+    ADD,
+    REMOVE,
+    REORDER,
+    ADMIN
+}
+
+@Serializable
+data class WatchPartyOptions(
+    val hostName: String,
+    val scheduledTime: Long? = null,
+    val syncPlayback: Boolean = true,
+    val chatEnabled: Boolean = true,
+    val maxParticipants: Int = 50,
+    val isPrivate: Boolean = false
+)
+
+@Serializable
+data class CollaborativePlaylist(
+    val id: String,
+    val shareCode: String,
+    val originalPlaylist: Playlist,
+    val videos: MutableList<PlaylistVideo>,
+    val owner: String,
+    val collaborators: MutableList<Collaborator>,
+    val permissions: CollaborativePermissions,
+    val createdAt: Long,
+    var lastModified: Long,
+    val syncEnabled: Boolean
+)
+
+@Serializable
+data class Collaborator(
+    val id: String,
+    val name: String,
+    val joinedAt: Long,
+    val permissions: Set<Permission>
+)
+
+@Serializable
+data class WatchParty(
+    val id: String,
+    val partyCode: String,
+    val video: RecentFile,
+    val host: String,
+    val participants: MutableList<Participant>,
+    val startTime: Long,
+    val syncPlayback: Boolean,
+    val chatEnabled: Boolean,
+    val maxParticipants: Int,
+    val isPrivate: Boolean,
+    var inviteLink: String? = null
+)
+
+@Serializable
+data class Participant(
+    val id: String,
+    val name: String,
+    val joinedAt: Long,
+    val isHost: Boolean = false
+)
+
+@Serializable
+data class SharedLink(
+    val id: String,
+    val videoId: String,
+    val videoTitle: String,
+    val createdAt: Long,
+    val expiresAt: Long,
+    var viewCount: Int = 0
+)
+
+@Serializable
+data class PlaylistShareData(
+    val name: String,
+    val description: String,
+    val createdDate: Long,
+    val videos: List<VideoShareData>
+)
+
+@Serializable
+data class VideoShareData(
+    val title: String,
+    val path: String,
+    val duration: Long,
+    val addedDate: Long
+)
+
+@Serializable
+data class AstralPlaylistData(
+    val version: String,
+    val appVersion: String,
+    val playlist: PlaylistShareData,
+    val metadata: PlaylistMetadata
+)
+
+@Serializable
+data class PlaylistMetadata(
+    val shareDate: Long,
+    val shareCode: String,
+    val thumbnails: List<String>
+)

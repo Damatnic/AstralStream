@@ -1,0 +1,306 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-parcelize'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.24'
+    id 'kotlin-kapt'
+    // id 'com.google.dagger.hilt.android' // Temporarily disabled
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
+}
+
+android {
+    namespace = 'com.astralplayer.nextplayer'
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.astralplayer.nextplayer"
+        minSdk = 24
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary = true
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            matchingFallbacks = ['release']
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+        freeCompilerArgs += [
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+        ]
+    }
+    
+    kapt {
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
+    }
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = '1.5.14'
+    }
+    packaging {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+    lint {
+        baseline = file("lint-baseline.xml")
+        abortOnError = false
+    }
+    
+    sourceSets {
+        getByName("main").java.srcDirs("src/main/java")
+    }
+    
+    // Configure test options
+    testOptions {
+        unitTests.all {
+            // Configure unit tests properly
+        }
+    }
+    
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/license.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/notice.txt', 'META-INF/*.kotlin_module']
+        }
+    }
+}
+
+// Create an alias for testClasses to fix the missing task issue
+tasks.register('testClasses') {
+    dependsOn 'compileDebugUnitTestKotlin', 'compileReleaseUnitTestKotlin'
+    description = 'Alias for testClasses task'
+    group = 'verification'
+}
+
+// Print dependency information to verify HLS is included
+task printDependencies {
+    doLast {
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            if (artifact.name.contains('media3') || artifact.name.contains('hls')) {
+                println "Found Media3/HLS dependency: ${artifact.name} - ${artifact.moduleVersion.id}"
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    // implementation 'com.jakewharton.timber:timber:5.0.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.0'
+    implementation 'androidx.activity:activity-compose:1.9.0'
+    
+    // Splash Screen API
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+    
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0'
+    
+    implementation 'com.google.android.material:material:1.12.0'
+    
+    // Enhanced Media3/ExoPlayer for all formats
+    def media3_version = "1.3.1"
+    
+    // Core components
+    implementation "androidx.media3:media3-common:${media3_version}"
+    implementation "androidx.media3:media3-exoplayer:${media3_version}"
+    implementation "androidx.media3:media3-ui:${media3_version}"
+    implementation "androidx.media3:media3-datasource:${media3_version}"
+    
+    // Format support (CRITICAL for adult content sites)
+    implementation "androidx.media3:media3-exoplayer-hls:${media3_version}"
+    implementation "androidx.media3:media3-exoplayer-dash:${media3_version}"
+    implementation "androidx.media3:media3-exoplayer-smoothstreaming:${media3_version}"
+    implementation "androidx.media3:media3-exoplayer-rtsp:${media3_version}"
+    
+    // Network components for streaming
+    implementation "androidx.media3:media3-datasource-okhttp:${media3_version}"
+    implementation "androidx.media3:media3-datasource-cronet:${media3_version}"
+    
+    // Additional codecs and containers
+    implementation "androidx.media3:media3-extractor:${media3_version}"
+    implementation "androidx.media3:media3-decoder:${media3_version}"
+    
+    // Cast support for Chromecast
+    implementation "androidx.media3:media3-cast:${media3_version}"
+    
+    // Session for background playback
+    implementation "androidx.media3:media3-session:${media3_version}"
+    
+    // Coroutines dependencies
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+    
+    // Kotlinx Serialization
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3'
+    
+    // OkHttp with interceptors for custom headers
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    
+    // For handling cookies (some sites require this)
+    implementation 'com.squareup.okhttp3:okhttp-urlconnection:4.12.0'
+    
+    // Security for encrypted preferences
+    implementation "androidx.security:security-crypto:1.1.0-alpha06"
+    
+    // Biometric authentication
+    implementation "androidx.biometric:biometric:1.1.0"
+    
+    // Room dependencies
+    def room_version = "2.6.1"
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
+    
+    // DataStore dependencies
+    implementation "androidx.datastore:datastore-preferences:1.0.0"
+    implementation "androidx.datastore:datastore:1.0.0"
+
+    // Hilt - Temporarily disabled
+    // implementation "com.google.dagger:hilt-android:2.51.1"
+    // kapt "com.google.dagger:hilt-compiler:2.51.1"
+    // implementation "androidx.hilt:hilt-navigation-compose:1.2.0"
+    
+    // Testing dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:5.3.1'
+    testImplementation "io.mockk:mockk:1.13.8"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0"
+    testImplementation "androidx.room:room-testing:2.6.1"
+    testImplementation 'androidx.test:core:1.5.0'
+    testImplementation 'androidx.test.ext:junit:1.1.5'
+    testImplementation 'org.robolectric:robolectric:4.11.1'
+    testImplementation 'androidx.arch.core:core-testing:2.2.0'
+    
+    // Gson for JSON serialization
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // Reorderable for drag-and-drop in playlists
+    implementation 'org.burnoutcrew.composereorderable:reorderable:0.9.6'
+    
+    // Coil for image loading
+    implementation 'io.coil-kt:coil-compose:2.6.0'
+    
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:32.8.0')
+    implementation 'com.google.firebase:firebase-analytics-ktx'
+    implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    
+    // Google Cast SDK for Chromecast support
+    implementation 'com.google.android.gms:play-services-cast:21.4.0'
+    implementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
+    
+    // ML Kit for AI scene detection
+    implementation 'com.google.mlkit:image-labeling:17.0.8'
+    implementation 'com.google.mlkit:object-detection:17.0.1'
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta4'
+    
+    // TensorFlow Lite for custom ML models
+    implementation 'org.tensorflow:tensorflow-lite:2.14.0'
+    implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.14.0'
+    
+    // Google Drive API
+    implementation('com.google.api-client:google-api-client-android:2.0.0') {
+        exclude group: 'com.fasterxml.jackson.core'
+        exclude group: 'ch.randelshofer'
+    }
+    implementation('com.google.apis:google-api-services-drive:v3-rev20240123-2.0.0') {
+        exclude group: 'com.fasterxml.jackson.core'
+        exclude group: 'ch.randelshofer'
+    }
+    implementation 'com.google.android.gms:play-services-auth:21.0.0'
+    
+    // Dropbox SDK
+    implementation('com.dropbox.core:dropbox-core-sdk:5.4.5') {
+        exclude group: 'com.fasterxml.jackson.core'
+        exclude group: 'ch.randelshofer'
+    }
+    
+    // // Microsoft Identity Client (MSAL) for OneDrive (commented out - user said no OneDrive needed)
+    // // implementation 'com.microsoft.identity.client:msal:4.9.0'
+    
+    // // Microsoft Graph SDK (commented out - user said no OneDrive needed)
+    // // implementation('com.microsoft.graph:microsoft-graph:5.77.0') {
+    // //     exclude group: 'com.google.code.gson'
+    // // }
+    // implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // // Use Android-compatible Jackson
+    // implementation 'com.fasterxml.jackson.core:jackson-core:2.13.5'
+    // implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.5'
+    
+    // RTMP Streaming - RootEncoder library
+    implementation 'com.github.pedroSG94.RootEncoder:library:2.3.1'
+    
+    // Google AI Studio (Gemini) for AI features
+    implementation 'com.google.ai.client.generativeai:generativeai:0.7.0'
+    
+    // Google Cloud Speech-to-Text (commented out for now - requires setup)
+    // implementation 'com.google.cloud:google-cloud-speech:4.20.0'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.5'
+    
+    // OkHttp for network requests (already included above)
+    
+    // // Video editing libraries
+    // // FFmpeg for Android - TEMPORARILY DISABLED
+    // // implementation 'com.arthenica:mobile-ffmpeg-full:4.4.LTS'
+    
+    // // Android native MediaCodec support (already included in Android SDK)
+    // // MediaExtractor and MediaMuxer for video editing
+    
+    // Hilt testing
+    testImplementation "com.google.dagger:hilt-android-testing:2.51.1"
+    
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation platform('androidx.compose:compose-bom:2024.06.00')
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    
+    // Hilt instrumented testing
+    androidTestImplementation "com.google.dagger:hilt-android-testing:2.51.1"
+    
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+
+// Configure kapt
+kapt {
+    correctErrorTypes = true
+    useBuildCache = true
+}

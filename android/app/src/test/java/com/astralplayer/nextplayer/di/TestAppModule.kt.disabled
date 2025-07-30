@@ -1,0 +1,80 @@
+package com.astralplayer.nextplayer.di
+
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import com.astralplayer.nextplayer.data.*
+import com.astralplayer.nextplayer.data.database.*
+import org.mockito.Mockito.mock
+
+// Test module for dependency injection in tests
+object TestAppModule {
+    
+    // Create in-memory database for testing
+    fun provideTestDatabase(): AstralVuDatabase {
+        return Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AstralVuDatabase::class.java
+        )
+            .allowMainThreadQueries() // Allow queries on main thread for testing
+            .build()
+    }
+    
+    fun provideTestRecentFilesDao(): RecentFilesDao {
+        return provideTestDatabase().recentFilesDao()
+    }
+    
+    fun provideTestRecentFilesRepository(): RecentFilesRepository {
+        val dao = provideTestRecentFilesDao()
+        return RecentFilesRepository(dao)
+    }
+    
+    // Mock services for testing
+    fun provideMockSettingsDataStore(): SettingsDataStore {
+        return mock(SettingsDataStore::class.java)
+    }
+    
+    fun provideMockNetworkManager(): NetworkManager {
+        return mock(NetworkManager::class.java)
+    }
+    
+    fun provideMockSubtitleRenderer(): SubtitleRenderer {
+        return mock(SubtitleRenderer::class.java)
+    }
+    
+    fun provideMockAudioExtractor(): AudioExtractor {
+        return mock(AudioExtractorImpl::class.java)
+    }
+    
+    fun provideMockSpeechToTextService(): CompositeSpeechToTextService {
+        return mock(CompositeSpeechToTextService::class.java)
+    }
+    
+    fun provideMockTranslationService(): TranslationService {
+        return mock(GoogleTranslationService::class.java)
+    }
+    
+    fun provideMockAISubtitleGenerator(): AISubtitleGenerator {
+        return mock(AISubtitleGeneratorImpl::class.java)
+    }
+    
+    fun provideMockCloudStorageManager(): CloudStorageManager {
+        return mock(CloudStorageManager::class.java)
+    }
+    
+    fun provideMockBrowserIntegrationManager(): BrowserIntegrationManager {
+        return mock(BrowserIntegrationManager::class.java)
+    }
+    
+    fun provideMockChromecastService(): ChromecastService {
+        return mock(ChromecastServiceImpl::class.java)
+    }
+    
+    fun provideMockSecurityManager(): SecurityManager {
+        return mock(SecurityManagerImpl::class.java)
+    }
+    
+    fun provideMockErrorRecoveryManager(): ErrorRecoveryManager {
+        return mock(ErrorRecoveryManagerImpl::class.java)
+    }
+}

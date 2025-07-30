@@ -1,0 +1,321 @@
+package com.astralplayer.nextplayer.gesture
+
+import android.content.Context
+import android.content.res.Configuration
+import android.content.res.Resources
+import android.util.DisplayMetrics
+import android.view.Display
+import android.view.WindowManager
+import androidx.compose.ui.geometry.Offset
+import com.astralplayer.nextplayer.data.TouchSide
+import com.astralplayer.nextplayer.data.*
+import com.astralplayer.nextplayer.data.gesture.*
+import io.mockk.*
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
+import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+
+class DeviceAdaptationTest {
+    
+    private lateinit var context: Context
+    private lateinit var windowManager: WindowManager
+    private lateinit var display: Display
+    private lateinit var displayMetrics: DisplayMetrics
+    private lateinit var resources: Resources
+    private lateinit var configuration: Configuration
+    private lateinit var deviceAdaptationManager: DeviceAdaptationManager
+    
+    @Before
+    fun setup() {
+        context = mockk(relaxed = true)
+        windowManager = mockk(relaxed = true)
+        display = mockk(relaxed = true)
+        displayMetrics = DisplayMetrics().apply {
+            widthPixels = 1080
+            heightPixels = 2400
+            density = 2.75f
+            xdpi = 420f
+            ydpi = 420f
+        }
+        resources = mockk(relaxed = true)
+        configuration = Configuration()
+        
+        every { context.getSystemService(Context.WINDOW_SERVICE) } returns windowManager
+        every { windowManager.defaultDisplay } returns display
+        every { display.getMetrics(any()) } answers {
+            val metrics = firstArg<DisplayMetrics>()
+            metrics.setTo(displayMetrics)
+        }
+        every { context.resources } returns resources
+        every { resources.configuration } returns configuration
+        every { context.packageManager } returns mockk(relaxed = true)
+        
+        deviceAdaptationManager = DeviceAdaptationManager(context)
+    }
+    
+    @Test
+    fun `test device profile detection for normal phone`() = runTest {
+        // Setup normal phone metrics
+        displayMetrics.apply {
+            widthPixels = 1080
+            heightPixels = 2400
+            density = 2.75f
+            xdpi = 420f
+            ydpi = 420f
+        }
+        
+        deviceAdaptationManager.updateDeviceMetrics()
+        val profile = deviceAdaptationManager.deviceProfile.value
+        
+        assertEquals(DeviceAdaptationManager.DeviceType.NORMAL_PHONE, profile.deviceType)
+        assertEquals(DeviceAdaptationManager.FormFactor.TALL_PHONE, profile.formFactor)
+        assertTrue(profile.aspectRatio > 2.0f)
+    }
+    
+    @Test
+    fun `test device profile detection for tablet`() = runTest {
+        // Setup tablet metrics
+        displayMetrics.apply {
+            widthPixels = 1600
+            heightPixels = 2560
+            density = 2.0f
+            xdpi = 224f
+            ydpi = 224f
+        }
+        
+        deviceAdaptationManager.updateDeviceMetrics()
+        val profile = deviceAdaptationManager.deviceProfile.value
+        
+        assertEquals(DeviceAdaptationManager.DeviceType.TABLET, profile.deviceType)
+        assertEquals(DeviceAdaptationManager.FormFactor.TABLET, profile.formFactor)
+    }
+    
+    @Test
+    fun `test orientation detection`() = runTest {
+        // Test portrait
+        configuration.orientation = Configuration.ORIENTATION_PORTRAIT
+        every { display.rotation } returns android.view.Surface.ROTATION_0
+        
+        deviceAdaptationManager.updateDeviceMetrics()
+        var orientationState = deviceAdaptationManager.orientationState.value
+        
+        assertEquals(DeviceAdaptationManager.Orientation.PORTRAIT, orientationState.orientation)
+        assertEquals(0, orientationState.rotation)
+        
+        // Test landscape
+        configuration.orientation = Configuration.ORIENTATION_LANDSCAPE
+        every { display.rotation } returns android.view.Surface.ROTATION_90
+        
+        deviceAdaptationManager.updateDeviceMetrics()
+        orientationState = deviceAdaptationManager.orientationState.value
+        
+        assertEquals(DeviceAdaptationManager.Orientation.LANDSCAPE, orientationState.orientation)
+        assertEquals(90, orientationState.rotation)
+    }
+    
+    @Test
+    fun `test adapted gesture settings for tablet`() = runTest {
+        // Setup tablet
+        displayMetrics.apply {
+            widthPixels = 1600
+            heightPixels = 2560
+            density = 2.0f
+            xdpi = 224f
+            ydpi = 224f
+        }
+        
+        deviceAdaptationManager.updateDeviceMetrics()
+        
+        val baseSettings = EnhancedGestureSettings()
+        val adaptedSettings = deviceAdaptationManager.getAdaptedGestureSettings(baseSettings)
+        
+        // Tablet should have reduced seeking sensitivity
+        assertTrue(adaptedSettings.seeking.sensitivity < baseSettings.seeking.sensitivity)
+        // Tablet should have larger minimum gesture distance
+        assertTrue(adaptedSettings.general.minimumGestureDistance > baseSettings.general.minimumGestureDistance)
+    }
+    
+    @Test
+    fun `test adapted gesture settings for small phone`() = runTest {
+        // Setup small phone
+        displayMetrics.apply {
+            widthPixels = 720
+            heightPixels = 1280
+            density = 2.0f
+            xdpi = 320f
+            ydpi = 320f
+        }
+        
+        deviceAdaptationManager.updateDeviceMetrics()
+        
+        val baseSettings = EnhancedGestureSettings()
+        val adaptedSettings = deviceAdaptationManager.getAdaptedGestureSettings(baseSettings)
+        
+        // Small phone should have increased seeking sensitivity
+        assertTrue(adaptedSettings.seeking.sensitivity > baseSettings.seeking.sensitivity)
+        // Small phone should have smaller minimum gesture distance
+        assertTrue(adaptedSettings.general.minimumGestureDistance < baseSettings.general.minimumGestureDistance)
+    }
+    
+    @Test
+    fun `test orientation aware gesture handler`() = runTest {
+        val orientationHandler = OrientationAwareGestureHandler(deviceAdaptationManager)
+        
+        // Test horizontal seek in portrait
+        configuration.orientation = Configuration.ORIENTATION_PORTRAIT
+        deviceAdaptationManager.updateDeviceMetrics()
+        
+        val seekAction = orientationHandler.processOrientationAwareGesture(
+            gestureType = GestureType.HORIZONTAL_SEEK,
+            position = Offset(500f, 1000f),
+            delta = Offset(100f, 0f),
+            screenSize = Offset(1080f, 2400f),
+            baseSettings = EnhancedGestureSettings()
+        )
+        
+        assertTrue(seekAction is GestureAction.Seek)
+        val seekAmount = (seekAction as GestureAction.Seek).deltaMs
+        
+        // Test same gesture in landscape - should have different sensitivity
+        configuration.orientation = Configuration.ORIENTATION_LANDSCAPE
+        deviceAdaptationManager.updateDeviceMetrics()
+        
+        val landscapeSeekAction = orientationHandler.processOrientationAwareGesture(
+            gestureType = GestureType.HORIZONTAL_SEEK,
+            position = Offset(1000f, 500f),
+            delta = Offset(100f, 0f),
+            screenSize = Offset(2400f, 1080f),
+            baseSettings = EnhancedGestureSettings()
+        )
+        
+        assertTrue(landscapeSeekAction is GestureAction.Seek)
+        val landscapeSeekAmount = (landscapeSeekAction as GestureAction.Seek).deltaMs
+        
+        // Landscape should have different seek amount due to adaptation
+        assertNotEquals(seekAmount, landscapeSeekAmount)
+    }
+    
+    @Test
+    fun `test effective side detection with rotation`() = runTest {
+        val orientationHandler = OrientationAwareGestureHandler(deviceAdaptationManager)
+        
+        // Normal portrait - left side tap
+        every { display.rotation } returns android.view.Surface.ROTATION_0
+        deviceAdaptationManager.updateDeviceMetrics()
+        
+        var doubleTapAction = orientationHandler.processOrientationAwareGesture(
+            gestureType = GestureType.DOUBLE_TAP,
+            position = Offset(200f, 1000f), // Left side
+            delta = Offset.Zero,
+            screenSize = Offset(1080f, 2400f),
+            baseSettings = EnhancedGestureSettings()
+        ) as? GestureAction.DoubleTapSeek
+        
+        assertEquals(TouchSide.LEFT, doubleTapAction?.side)
+        assertEquals(false, doubleTapAction?.forward) // Left side = backward
+        
+        // Reverse portrait - same position should be right side
+        every { display.rotation } returns android.view.Surface.ROTATION_180
+        deviceAdaptationManager.updateDeviceMetrics()
+        
+        doubleTapAction = orientationHandler.processOrientationAwareGesture(
+            gestureType = GestureType.DOUBLE_TAP,
+            position = Offset(200f, 1000f), // Same position
+            delta = Offset.Zero,
+            screenSize = Offset(1080f, 2400f),
+            baseSettings = EnhancedGestureSettings()
+        ) as? GestureAction.DoubleTapSeek
+        
+        assertEquals(TouchSide.RIGHT, doubleTapAction?.side) // Inverted
+        assertEquals(true, doubleTapAction?.forward) // Right side = forward
+    }
+    
+    @Test
+    fun `test tablet gesture adapter`() {
+        val tabletAdapter = TabletGestureAdapter()
+        val baseSettings = EnhancedGestureSettings()
+        
+        // Test landscape tablet adaptations
+        val landscapeSettings = tabletAdapter.adaptGesturesForTablet(
+            baseSettings = baseSettings,
+            screenSize = Offset(2560f, 1600f),
+            isLandscape = true
+        )
+        
+        // Verify tablet adaptations
+        assertTrue(landscapeSettings.general.minimumGestureDistance > baseSettings.general.minimumGestureDistance)
+        assertTrue(landscapeSettings.seeking.sensitivity < baseSettings.seeking.sensitivity)
+        assertTrue(landscapeSettings.seeking.enableFineSeek)
+        assertTrue(landscapeSettings.doubleTap.maxTapDistance > baseSettings.doubleTap.maxTapDistance)
+        assertEquals(150f, landscapeSettings.doubleTap.edgeZoneWidth)
+        assertEquals(4.0f, landscapeSettings.pinchZoom.maxZoom)
+        
+        // Test portrait tablet adaptations
+        val portraitSettings = tabletAdapter.adaptGesturesForTablet(
+            baseSettings = baseSettings,
+            screenSize = Offset(1600f, 2560f),
+            isLandscape = false
+        )
+        
+        assertEquals(100f, portraitSettings.doubleTap.edgeZoneWidth)
+    }
+    
+    @Test
+    fun `test tablet gesture zones`() {
+        val tabletAdapter = TabletGestureAdapter()
+        
+        // Test landscape zones
+        val landscapeZones = tabletAdapter.getTabletGestureZones(
+            screenSize = Offset(2560f, 1600f),
+            isLandscape = true
+        )
+        
+        val volumeZone = landscapeZones["volume"]!!
+        assertEquals(2560f * 0.7f, volumeZone.startX)
+        assertEquals(2560f, volumeZone.endX)
+        
+        val seekZone = landscapeZones["seek"]!!
+        assertEquals(2560f * 0.3f, seekZone.startX)
+        assertEquals(2560f * 0.7f, seekZone.endX)
+        
+        // Test portrait zones
+        val portraitZones = tabletAdapter.getTabletGestureZones(
+            screenSize = Offset(1600f, 2560f),
+            isLandscape = false
+        )
+        
+        val portraitVolumeZone = portraitZones["volume"]!!
+        assertEquals(1600f * 0.6f, portraitVolumeZone.startX)
+    }
+    
+    @Test
+    fun `test foldable gesture adapter`() {
+        val foldableAdapter = FoldableGestureAdapter()
+        val baseSettings = EnhancedGestureSettings()
+        
+        // Test folded state
+        val foldedSettings = foldableAdapter.adaptGesturesForFoldable(
+            baseSettings = baseSettings,
+            isFolded = true,
+            foldPosition = FoldableGestureAdapter.FoldPosition.VERTICAL
+        )
+        
+        // Folded should act more like a phone
+        assertTrue(foldedSettings.seeking.sensitivity > baseSettings.seeking.sensitivity)
+        assertEquals(50f, foldedSettings.doubleTap.deadZoneAroundFold)
+        
+        // Test unfolded state
+        val unfoldedSettings = foldableAdapter.adaptGesturesForFoldable(
+            baseSettings = baseSettings,
+            isFolded = false,
+            foldPosition = FoldableGestureAdapter.FoldPosition.VERTICAL
+        )
+        
+        // Unfolded should act more like a tablet
+        assertTrue(unfoldedSettings.seeking.sensitivity < baseSettings.seeking.sensitivity)
+        assertEquals(3.5f, unfoldedSettings.pinchZoom.maxZoom)
+    }
+}
