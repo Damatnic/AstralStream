@@ -10,14 +10,26 @@ import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.astralplayer.nextplayer.data.PlayerRepository
 import com.astralplayer.nextplayer.data.PlayerRepositoryImpl
 import com.astralplayer.nextplayer.utils.CodecManager
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
+@Module
+@InstallIn(SingletonComponent::class)
 object PlayerModule {
     
-    fun provideBandwidthMeter(context: Context): DefaultBandwidthMeter {
+    @Provides
+    @Singleton
+    fun provideBandwidthMeter(@ApplicationContext context: Context): DefaultBandwidthMeter {
         return DefaultBandwidthMeter.getSingletonInstance(context)
     }
     
-    fun provideTrackSelector(context: Context): DefaultTrackSelector {
+    @Provides
+    @Singleton
+    fun provideTrackSelector(@ApplicationContext context: Context): DefaultTrackSelector {
         return DefaultTrackSelector(context).apply {
             setParameters(
                 buildUponParameters()
@@ -30,6 +42,8 @@ object PlayerModule {
         }
     }
     
+    @Provides
+    @Singleton
     fun provideLoadControl(): DefaultLoadControl {
         return DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -42,6 +56,8 @@ object PlayerModule {
             .build()
     }
     
+    @Provides
+    @Singleton
     fun provideAudioAttributes(): AudioAttributes {
         return AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
@@ -49,14 +65,18 @@ object PlayerModule {
             .build()
     }
     
-    fun provideCodecManager(context: Context): CodecManager {
+    @Provides
+    @Singleton
+    fun provideCodecManager(@ApplicationContext context: Context): CodecManager {
         return CodecManager(context).apply {
             initializeCodecs()
         }
     }
     
+    @Provides
+    @Singleton
     fun provideExoPlayer(
-        context: Context,
+        @ApplicationContext context: Context,
         codecManager: CodecManager,
         trackSelector: DefaultTrackSelector,
         loadControl: DefaultLoadControl,
@@ -77,9 +97,11 @@ object PlayerModule {
         .build()
     }
     
+    @Provides
+    @Singleton
     fun providePlayerRepository(
         exoPlayer: ExoPlayer,
-        context: Context
+        @ApplicationContext context: Context
     ): PlayerRepository {
         return PlayerRepositoryImpl(exoPlayer, context)
     }

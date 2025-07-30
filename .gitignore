@@ -68,6 +68,9 @@ captures/
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
+# API Keys and sensitive configuration
+android/app/src/main/assets/api_config.properties
+
 # Freeline
 freeline.py
 freeline/

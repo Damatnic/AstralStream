@@ -1,0 +1,12 @@
+IMPORTANT: You need to download google-services.json from Firebase Console
+
+1. Go to Firebase Console: https://console.firebase.google.com/
+2. Select your AstralStream project (or create one)
+3. Click on the Android app with package name: com.astralplayer.nextplayer
+4. Download the google-services.json file
+5. Replace this file with the downloaded google-services.json
+
+The google-services.json file should be placed in:
+android/app/google-services.json
+
+This file is already added to .gitignore for security.

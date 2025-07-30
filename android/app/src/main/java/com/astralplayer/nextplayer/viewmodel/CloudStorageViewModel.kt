@@ -3,19 +3,16 @@ package com.astralplayer.nextplayer.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.astralplayer.nextplayer.data.cloud.*
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
-import javax.inject.Inject
 
 /**
  * ViewModel for managing cloud storage functionality
  */
-@HiltViewModel
-class CloudStorageViewModel @Inject constructor() : ViewModel() {
+class CloudStorageViewModel : ViewModel() {
     
     private val _connectedAccounts = MutableStateFlow<List<CloudAccount>>(emptyList())
     val connectedAccounts: StateFlow<List<CloudAccount>> = _connectedAccounts.asStateFlow()

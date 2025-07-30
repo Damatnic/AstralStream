@@ -6,10 +6,8 @@ import com.astralplayer.nextplayer.data.database.AstralVuDatabase
 import com.astralplayer.nextplayer.data.repository.SettingsRepository
 import com.astralplayer.nextplayer.data.repository.SettingsRepositoryImpl
 import com.astralplayer.nextplayer.utils.CodecManager
+import com.astralplayer.nextplayer.config.ApiKeyManager
 import com.google.firebase.FirebaseApp
-import dagger.hilt.android.HiltAndroidApp
-
-@HiltAndroidApp
 class AstralVuApplication : Application() {
     
     lateinit var database: AstralVuDatabase
@@ -23,6 +21,9 @@ class AstralVuApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize API Key Manager
+        ApiKeyManager.initialize(this)
         
         // Initialize Firebase
         FirebaseApp.initializeApp(this)

@@ -1,11 +1,17 @@
 package com.astralplayer.nextplayer
 
+import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -24,12 +30,9 @@ import com.astralplayer.nextplayer.data.EnhancedGestureManager
 import com.astralplayer.nextplayer.data.HapticFeedbackManager
 import com.astralplayer.nextplayer.data.gesture.GestureSettingsSerializer
 import com.astralplayer.nextplayer.ui.theme.AstralPlayerTheme
-import com.astralplayer.nextplayer.ui.screens.EnhancedVideoPlayerScreen
+import com.astralplayer.nextplayer.ui.screens.SimpleVideoPlayerWithGestures
 import com.astralplayer.nextplayer.utils.CodecManager
 import com.astralplayer.nextplayer.utils.IntentUtils
-import com.astralplayer.nextplayer.viewmodel.EnhancedPlayerViewModel
-import com.astralplayer.nextplayer.viewmodel.EnhancedPlayerViewModelFactory
-import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.launch
 
 @UnstableApi
@@ -40,18 +43,23 @@ open class VideoPlayerActivity : ComponentActivity() {
     }
     
     protected lateinit var exoPlayer: ExoPlayer
-    protected lateinit var playerView: PlayerView
     protected lateinit var playerRepository: PlayerRepository
     protected lateinit var codecManager: CodecManager
-    protected lateinit var enhancedPlayerViewModel: EnhancedPlayerViewModel
+    protected lateinit var playerView: PlayerView
     protected lateinit var gestureManager: EnhancedGestureManager
     protected lateinit var hapticManager: HapticFeedbackManager
     protected lateinit var settingsSerializer: GestureSettingsSerializer
     
     private var videoUri: Uri? = null
     private var videoTitle: String? = null
+    private var isInPipMode = false
     
     protected fun getPlayer(): ExoPlayer? = if (::exoPlayer.isInitialized) exoPlayer else null
+    
+    private fun supportsPiP(): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,9 +79,8 @@ open class VideoPlayerActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     videoUri?.let { uri ->
-                        EnhancedVideoPlayerScreen(
+                        SimpleVideoPlayerWithGestures(
                             playerView = playerView,
-                            viewModel = enhancedPlayerViewModel,
                             onBack = { finish() }
                         )
                     }
@@ -101,25 +108,11 @@ open class VideoPlayerActivity : ComponentActivity() {
             // Create PlayerView
             playerView = PlayerView(this).apply {
                 player = exoPlayer
-                useController = false // We'll use our custom controls
+                useController = true // Use default ExoPlayer controls for simplicity
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             }
             
-            // Create ViewModel
-            val viewModelFactory = EnhancedPlayerViewModelFactory(
-                application = application,
-                playerRepository = playerRepository,
-                gestureManager = gestureManager,
-                settingsSerializer = settingsSerializer,
-                hapticManager = hapticManager
-            )
-            enhancedPlayerViewModel = ViewModelProvider(this, viewModelFactory)
-                .get(EnhancedPlayerViewModel::class.java)
-            
-            // Setup vertical gesture handler with window
-            enhancedPlayerViewModel.setupVerticalGestureHandler(window)
-            
-            Log.d(TAG, "Player initialized successfully with gesture support")
+            Log.d(TAG, "Player initialized successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize player", e)
         }
@@ -137,8 +130,6 @@ open class VideoPlayerActivity : ComponentActivity() {
                 videoUri = uri
                 videoTitle = title
                 loadVideo(uri)
-                // Also load in ViewModel
-                enhancedPlayerViewModel.loadVideo(uri)
                 Log.d(TAG, "Loading video: $uri")
             } else {
                 Log.w(TAG, "No video URI provided in intent")
@@ -183,6 +174,49 @@ open class VideoPlayerActivity : ComponentActivity() {
         super.onDestroy()
         if (::exoPlayer.isInitialized) {
             exoPlayer.release()
+        }
+    }
+    
+    fun enterPiPMode() {
+        if (supportsPiP() && !isInPipMode) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val aspectRatio = Rational(16, 9) // Default aspect ratio
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(aspectRatio)
+                        .build()
+                    enterPictureInPictureMode(params)
+                    Log.d(TAG, "Entering PiP mode")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to enter PiP mode", e)
+                }
+            }
+        }
+    }
+    
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (supportsPiP() && exoPlayer.isPlaying) {
+            enterPiPMode()
+        }
+    }
+    
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        isInPipMode = isInPictureInPictureMode
+        
+        // Update UI for PiP mode
+        if (isInPictureInPictureMode) {
+            // Hide controls in PiP mode
+            playerView.useController = false
+            Log.d(TAG, "Entered PiP mode")
+        } else {
+            // Show controls when exiting PiP
+            playerView.useController = true
+            Log.d(TAG, "Exited PiP mode")
         }
     }
 }

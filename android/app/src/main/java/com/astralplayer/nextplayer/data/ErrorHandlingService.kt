@@ -102,6 +102,30 @@ class NetworkConnectivityManager constructor(
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
     
+    fun getConnectionQuality(): ConnectionQuality {
+        if (!isConnected()) return ConnectionQuality.NONE
+        
+        val network = connectivityManager.activeNetwork ?: return ConnectionQuality.NONE
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return ConnectionQuality.NONE
+        
+        return when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                val linkDownstreamBandwidthKbps = capabilities.linkDownstreamBandwidthKbps
+                when {
+                    linkDownstreamBandwidthKbps > 25000 -> ConnectionQuality.EXCELLENT
+                    linkDownstreamBandwidthKbps > 10000 -> ConnectionQuality.GOOD
+                    linkDownstreamBandwidthKbps > 1000 -> ConnectionQuality.FAIR
+                    else -> ConnectionQuality.POOR
+                }
+            }
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                // Cellular connection - generally lower quality for streaming
+                ConnectionQuality.FAIR
+            }
+            else -> ConnectionQuality.POOR
+        }
+    }
+    
     fun isMobileConnected(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
@@ -116,6 +140,10 @@ class NetworkConnectivityManager constructor(
             else -> "None"
         }
     }
+}
+
+enum class ConnectionQuality {
+    NONE, POOR, FAIR, GOOD, EXCELLENT
 }
 
 // Main Error Recovery Manager

@@ -40,7 +40,6 @@ import android.util.Log
 import kotlinx.coroutines.launch
 import com.astralplayer.nextplayer.ui.components.VideoThumbnail
 import com.astralplayer.nextplayer.ui.components.NetworkStreamDialog
-
 class MainActivity : ComponentActivity() {
     
     private val requestPermissionLauncher = registerForActivityResult(

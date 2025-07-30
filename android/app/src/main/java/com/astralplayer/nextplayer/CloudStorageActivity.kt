@@ -14,10 +14,8 @@ import androidx.compose.ui.Modifier
 import com.astralplayer.nextplayer.data.cloud.CloudProvider
 import com.astralplayer.nextplayer.viewmodel.CloudStorageViewModel
 import androidx.activity.viewModels
-import dagger.hilt.android.AndroidEntryPoint
 import com.astralplayer.nextplayer.ui.screens.CloudStorageScreen
 import com.astralplayer.nextplayer.ui.theme.AstralPlayerTheme
-@AndroidEntryPoint
 class CloudStorageActivity : ComponentActivity() {
     
     private val viewModel: CloudStorageViewModel by viewModels()

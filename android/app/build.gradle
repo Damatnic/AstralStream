@@ -114,25 +114,25 @@ task printDependencies {
 dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     // implementation 'com.jakewharton.timber:timber:5.0.1'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.0'
-    implementation 'androidx.activity:activity-compose:1.9.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.4'
+    implementation 'androidx.activity:activity-compose:1.9.1'
     
     // Splash Screen API
     implementation 'androidx.core:core-splashscreen:1.0.1'
     
-    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation platform('androidx.compose:compose-bom:2024.08.00')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4'
     
     implementation 'com.google.android.material:material:1.12.0'
     
     // Enhanced Media3/ExoPlayer for all formats
-    def media3_version = "1.3.1"
+    def media3_version = "1.4.0"
     
     // Core components
     implementation "androidx.media3:media3-common:${media3_version}"
@@ -161,8 +161,8 @@ dependencies {
     implementation "androidx.media3:media3-session:${media3_version}"
     
     // Coroutines dependencies
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0'
     
     // Kotlinx Serialization
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3'
@@ -191,8 +191,8 @@ dependencies {
     implementation "androidx.datastore:datastore:1.0.0"
 
     // Hilt
-    implementation "com.google.dagger:hilt-android:2.51.1"
-    kapt "com.google.dagger:hilt-compiler:2.51.1"
+    implementation "com.google.dagger:hilt-android:2.48.1"
+    kapt "com.google.dagger:hilt-compiler:2.48.1"
     implementation "androidx.hilt:hilt-navigation-compose:1.2.0"
     
     // Testing dependencies
@@ -218,13 +218,17 @@ dependencies {
     implementation 'io.coil-kt:coil-compose:2.6.0'
     
     // Firebase
-    implementation platform('com.google.firebase:firebase-bom:32.8.0')
+    implementation platform('com.google.firebase:firebase-bom:34.0.0')
     implementation 'com.google.firebase:firebase-analytics-ktx'
     implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    // Note: Firebase Auth and Firestore are not needed for current features
+    // Uncomment if you want user authentication or cloud database:
+    // implementation 'com.google.firebase:firebase-auth-ktx'
+    // implementation 'com.google.firebase:firebase-firestore-ktx'
     
     // Google Cast SDK for Chromecast support
-    implementation 'com.google.android.gms:play-services-cast:21.4.0'
-    implementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
+    implementation 'com.google.android.gms:play-services-cast:21.5.0'
+    implementation 'com.google.android.gms:play-services-cast-framework:21.5.0'
     
     // ML Kit for AI scene detection - REMOVED for APK size optimization
     // implementation 'com.google.mlkit:image-labeling:17.0.8'
@@ -286,15 +290,15 @@ dependencies {
     // // MediaExtractor and MediaMuxer for video editing
     
     // Hilt testing
-    testImplementation "com.google.dagger:hilt-android-testing:2.51.1"
+    testImplementation "com.google.dagger:hilt-android-testing:2.48.1"
     
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation platform('androidx.compose:compose-bom:2024.06.00')
+    androidTestImplementation platform('androidx.compose:compose-bom:2024.08.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     
     // Hilt instrumented testing
-    androidTestImplementation "com.google.dagger:hilt-android-testing:2.51.1"
+    androidTestImplementation "com.google.dagger:hilt-android-testing:2.48.1"
     
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
