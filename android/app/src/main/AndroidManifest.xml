@@ -29,7 +29,7 @@
         android:required="false" />
 
     <application
-        android:name="com.astralplayer.stream.app.AstralStreamApplication"
+        android:name="com.astralplayer.AstralPlayerApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -54,69 +54,108 @@
             </intent-filter>
         </activity>
         
-        <!-- Video Player Activity with Intent Filters for "Open With" -->
+        <!-- Enhanced Video Player Activity - THE MOST IMPORTANT PART -->
         <activity
-            android:name=".VideoPlayerActivity"
+            android:name="com.astralplayer.presentation.player.EnhancedVideoPlayerActivity"
             android:exported="true"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:theme="@style/Theme.AstralPlayer.FullScreen"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
-            android:theme="@style/Theme.AstralStream.VideoPlayer">
+            android:resizeableActivity="true">
             
-            <!-- Intent filter for video files -->
-            <intent-filter>
+            <!-- CRITICAL: Priority 999 for all intent filters -->
+            
+            <!-- Direct video URLs with extensions -->
+            <intent-filter android:priority="999">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 
-                <!-- Video MIME types -->
-                <data android:mimeType="video/*" />
-                <data android:mimeType="application/vnd.android.package-archive" />
-                <data android:mimeType="application/x-mpegURL" />
-                <data android:mimeType="application/vnd.apple.mpegurl" />
-            </intent-filter>
-            
-            <!-- Intent filter for file extensions -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                
-                <data android:scheme="file" />
-                <data android:scheme="content" />
                 <data android:scheme="http" />
                 <data android:scheme="https" />
+                <data android:host="*" />
                 
-                <!-- Common video extensions -->
+                <!-- All video extensions -->
                 <data android:pathPattern=".*\\.mp4" />
-                <data android:pathPattern=".*\\.avi" />
+                <data android:pathPattern=".*\\..*\\.mp4" />
+                <data android:pathPattern=".*\\..*\\..*\\.mp4" />
                 <data android:pathPattern=".*\\.mkv" />
+                <data android:pathPattern=".*\\..*\\.mkv" />
+                <data android:pathPattern=".*\\.avi" />
                 <data android:pathPattern=".*\\.mov" />
                 <data android:pathPattern=".*\\.wmv" />
                 <data android:pathPattern=".*\\.flv" />
                 <data android:pathPattern=".*\\.webm" />
+                <data android:pathPattern=".*\\..*\\.webm" />
                 <data android:pathPattern=".*\\.m4v" />
                 <data android:pathPattern=".*\\.3gp" />
-                <data android:pathPattern=".*\\.3g2" />
-                <data android:pathPattern=".*\\.m3u8" />
                 <data android:pathPattern=".*\\.ts" />
+                <data android:pathPattern=".*\\.m2ts" />
             </intent-filter>
             
-            <!-- Intent filter for streaming URLs -->
-            <intent-filter>
+            <!-- Streaming manifests -->
+            <intent-filter android:priority="999">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 
                 <data android:scheme="http" />
                 <data android:scheme="https" />
+                <data android:host="*" />
+                
+                <data android:pathPattern=".*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\.m3u8" />
+                <data android:pathPattern=".*playlist.*" />
+                <data android:pathPattern=".*\\.mpd" />
+                <data android:pathPattern=".*manifest.*" />
+            </intent-filter>
+            
+            <!-- MIME types -->
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/x-mpegURL" />
+                <data android:mimeType="application/vnd.apple.mpegurl" />
+                <data android:mimeType="application/dash+xml" />
+                <data android:mimeType="application/mp4" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            
+            <!-- Streaming protocols -->
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
                 <data android:scheme="rtsp" />
                 <data android:scheme="rtmp" />
                 <data android:scheme="mms" />
-                
-                <data android:host="*" />
-                <data android:pathPattern=".*\\.mp4" />
-                <data android:pathPattern=".*\\.m3u8" />
+                <data android:scheme="rtp" />
+            </intent-filter>
+            
+            <!-- Share intent -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            
+            <!-- Content provider -->
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
         
