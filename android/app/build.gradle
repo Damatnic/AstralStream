@@ -247,6 +247,15 @@ dependencies {
     implementation "androidx.room:room-ktx:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
     
+    // Cloud Storage SDKs
+    implementation 'com.dropbox.core:dropbox-core-sdk:5.4.4'
+    implementation 'com.microsoft.graph:microsoft-graph:5.45.0'
+    implementation 'com.microsoft.identity.client:msal:4.0.0'
+    implementation 'com.microsoft.identity:common:9.0.0'
+    
+    // Work Manager for downloads
+    implementation "androidx.work:work-runtime-ktx:2.9.0"
+    
     // DataStore dependencies
     implementation "androidx.datastore:datastore-preferences:1.0.0"
     implementation "androidx.datastore:datastore:1.0.0"
