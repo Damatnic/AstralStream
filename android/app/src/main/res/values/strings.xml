@@ -33,4 +33,15 @@
     <string name="error_invalid_url">Invalid URL</string>
     <string name="error_playback_failed">Playback failed</string>
     <string name="loading">Loading...</string>
+    
+    <!-- Elite Video Player Strings -->
+    <string name="elite_video_player">Elite Video Player</string>
+    <string name="elite_subtitles">Elite Subtitles</string>
+    <string name="elite_video_quality">Elite Video Quality</string>
+    <string name="generate_with_elite_ai">Generate with Elite AI</string>
+    <string name="load_subtitle_file">Load subtitle file</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="fullscreen">Fullscreen</string>
+    <string name="quality">Quality</string>
 </resources>

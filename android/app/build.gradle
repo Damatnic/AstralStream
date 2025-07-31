@@ -33,11 +33,18 @@ android {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
         }
         
-        // AI Service API Keys - Add these to your local.properties file
+        // Elite AI Service API Keys - Add these to your local.properties file
         buildConfigField "String", "GOOGLE_AI_API_KEY", "\"${project.findProperty("GOOGLE_AI_API_KEY") ?: ""}\""
-        buildConfigField "String", "SPEECH_TO_TEXT_API_KEY", "\"${project.findProperty("SPEECH_TO_TEXT_API_KEY") ?: ""}\""
+        buildConfigField "String", "SPEECH_TO_TEXT_API_KEY", "\"${project.findProperty("SPEECH_TO_Text_API_KEY") ?: ""}\""
         buildConfigField "String", "TRANSLATE_API_KEY", "\"${project.findProperty("TRANSLATE_API_KEY") ?: ""}\""
         buildConfigField "String", "OPENAI_API_KEY", "\"${project.findProperty("OPENAI_API_KEY") ?: ""}\""
+        buildConfigField "String", "AZURE_SPEECH_API_KEY", "\"${project.findProperty("AZURE_SPEECH_API_KEY") ?: ""}\""
+        buildConfigField "String", "ASSEMBLY_AI_API_KEY", "\"${project.findProperty("ASSEMBLY_AI_API_KEY") ?: ""}\""
+        buildConfigField "String", "DEEPGRAM_API_KEY", "\"${project.findProperty("DEEPGRAM_API_KEY") ?: ""}\""
+        
+        // Elite security configurations
+        buildConfigField "boolean", "ELITE_SECURITY_ENABLED", "true"
+        buildConfigField "boolean", "ELITE_ANALYTICS_ENABLED", "true"
     }
 
     buildTypes {
@@ -208,34 +215,11 @@ dependencies {
     
     implementation 'com.google.android.material:material:1.12.0'
     
-    // Enhanced Media3/ExoPlayer for all formats
-    def media3_version = "1.4.0"
+    // Elite Performance Monitoring
+    implementation 'com.squareup.leakcanary:leakcanary-android:2.12'
     
-    // Core components
-    implementation "androidx.media3:media3-common:${media3_version}"
-    implementation "androidx.media3:media3-exoplayer:${media3_version}"
-    implementation "androidx.media3:media3-ui:${media3_version}"
-    implementation "androidx.media3:media3-datasource:${media3_version}"
-    
-    // Format support (CRITICAL for adult content sites)
-    implementation "androidx.media3:media3-exoplayer-hls:${media3_version}"
-    implementation "androidx.media3:media3-exoplayer-dash:${media3_version}"
-    implementation "androidx.media3:media3-exoplayer-smoothstreaming:${media3_version}"
-    implementation "androidx.media3:media3-exoplayer-rtsp:${media3_version}"
-    
-    // Network components for streaming
-    implementation "androidx.media3:media3-datasource-okhttp:${media3_version}"
-    implementation "androidx.media3:media3-datasource-cronet:${media3_version}"
-    
-    // Additional codecs and containers
-    implementation "androidx.media3:media3-extractor:${media3_version}"
-    implementation "androidx.media3:media3-decoder:${media3_version}"
-    
-    // Cast support for Chromecast
-    implementation "androidx.media3:media3-cast:${media3_version}"
-    
-    // Session for background playback
-    implementation "androidx.media3:media3-session:${media3_version}"
+    // Elite Network Security
+    implementation 'com.squareup.okhttp3:okhttp-tls:4.12.0'
     
     // Coroutines dependencies
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0'
