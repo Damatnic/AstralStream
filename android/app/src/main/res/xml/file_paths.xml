@@ -1,8 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Elite File Provider Paths for AstralStream -->
+    
+    <!-- Internal storage cache for video thumbnails and temp files -->
+    <cache-path name="video_cache" path="videos/" />
+    <cache-path name="thumbnails" path="thumbnails/" />
+    <cache-path name="subtitles" path="subtitles/" />
+    <cache-path name="temp" path="temp/" />
+    <cache-path name="cache" path="." />
+    
+    <!-- Files directory for app-specific files -->
+    <files-path name="app_files" path="." />
+    <files-path name="downloads" path="downloads/" />
+    <files-path name="exports" path="exports/" />
+    <files-path name="files" path="." />
+    
+    <!-- External storage for user-accessible files -->
+    <external-path name="external_storage" path="." />
     <external-path name="external_files" path="." />
     <external-files-path name="external_app_files" path="." />
-    <cache-path name="cache" path="." />
-    <files-path name="files" path="." />
+    <external-cache-path name="external_cache" path="." />
+    
+    <!-- Media directories for video files -->
+    <external-media-path name="external_media" path="." />
+    <external-files-path name="videos" path="Videos/" />
+    <external-files-path name="movies" path="Movies/" />
+    
+    <!-- For sharing video files and screenshots -->
+    <files-path name="shared_files" path="shared/" />
+    <cache-path name="shared_cache" path="shared/" />
+    
+    <!-- Root path for advanced file operations -->
     <root-path name="root" path="." />
+    
 </paths>

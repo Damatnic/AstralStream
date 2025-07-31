@@ -1,14 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for video streaming sites that may not support HTTPS -->
+    <!-- Elite Network Security Configuration for AstralStream -->
+    
+    <!-- Base configuration allowing cleartext for video streaming -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
+            <!-- Trust system certificates -->
             <certificates src="system" />
+            <!-- Trust user-added CA certificates -->
             <certificates src="user" />
         </trust-anchors>
     </base-config>
     
-    <!-- Specific secure domains -->
+    <!-- Adult content and streaming domains configuration -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Major adult content platforms -->
+        <domain includeSubdomains="true">pornhub.com</domain>
+        <domain includeSubdomains="true">xvideos.com</domain>
+        <domain includeSubdomains="true">xhamster.com</domain>
+        <domain includeSubdomains="true">redtube.com</domain>
+        <domain includeSubdomains="true">youporn.com</domain>
+        <domain includeSubdomains="true">tube8.com</domain>
+        <domain includeSubdomains="true">xtube.com</domain>
+        <domain includeSubdomains="true">spankbang.com</domain>
+        <domain includeSubdomains="true">xnxx.com</domain>
+        <domain includeSubdomains="true">beeg.com</domain>
+        
+        <!-- Video streaming platforms -->
+        <domain includeSubdomains="true">youtube.com</domain>
+        <domain includeSubdomains="true">youtu.be</domain>
+        <domain includeSubdomains="true">vimeo.com</domain>
+        <domain includeSubdomains="true">dailymotion.com</domain>
+        <domain includeSubdomains="true">twitch.tv</domain>
+        
+        <!-- CDN and streaming services -->
+        <domain includeSubdomains="true">cloudflare.com</domain>
+        <domain includeSubdomains="true">fastly.com</domain>
+        <domain includeSubdomains="true">akamai.net</domain>
+        <domain includeSubdomains="true">amazonaws.com</domain>
+        <domain includeSubdomains="true">azure.com</domain>
+        <domain includeSubdomains="true">googleusercontent.com</domain>
+        
+        <!-- Generic streaming and media domains -->
+        <domain includeSubdomains="true">stream.com</domain>
+        <domain includeSubdomains="true">streaming.com</domain>
+        <domain includeSubdomains="true">video.com</domain>
+        <domain includeSubdomains="true">media.com</domain>
+        <domain includeSubdomains="true">cdn.com</domain>
+        
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- Secure domains that require HTTPS -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">api.astralvu.com</domain>
         <domain includeSubdomains="true">astralplayer.com</domain>
@@ -17,10 +63,38 @@
         </trust-anchors>
     </domain-config>
     
-    <!-- Allow localhost for testing -->
+    <!-- Development and localhost configuration -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain>localhost</domain>
-        <domain>127.0.0.1</domain>
-        <domain>10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">10.0.0.0/8</domain>
+        <domain includeSubdomains="true">192.168.0.0/16</domain>
+        <domain includeSubdomains="true">172.16.0.0/12</domain>
     </domain-config>
+    
+    <!-- HLS and DASH streaming configuration -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- HLS streaming endpoints -->
+        <domain includeSubdomains="true">hls.streaming.com</domain>
+        <domain includeSubdomains="true">manifest.streaming.com</domain>
+        <domain includeSubdomains="true">m3u8.streaming.com</domain>
+        
+        <!-- DASH streaming endpoints -->
+        <domain includeSubdomains="true">dash.streaming.com</domain>
+        <domain includeSubdomains="true">mpd.streaming.com</domain>
+        
+        <!-- RTMP and other streaming protocols -->
+        <domain includeSubdomains="true">rtmp.streaming.com</domain>
+        <domain includeSubdomains="true">rtsp.streaming.com</domain>
+    </domain-config>
+    
+    <!-- Debug configuration for development builds -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+    
 </network-security-config>
