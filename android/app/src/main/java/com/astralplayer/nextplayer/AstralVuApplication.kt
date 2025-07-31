@@ -16,12 +16,16 @@ import com.astralplayer.nextplayer.performance.PerformanceMonitor
 import com.astralplayer.nextplayer.performance.StartupOptimizer
 import com.astralplayer.nextplayer.security.AppLockManager
 import com.google.firebase.FirebaseApp
+import androidx.work.Configuration
+import androidx.hilt.work.HiltWorkerFactory
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltAndroidApp
-class AstralStreamApplication : Application() {
+class AstralStreamApplication : Application(), Configuration.Provider {
+    
+    @Inject lateinit var workerFactory: HiltWorkerFactory
     
     @Inject lateinit var startupOptimizer: StartupOptimizer
     @Inject lateinit var performanceMonitor: PerformanceMonitor
@@ -116,5 +120,11 @@ class AstralStreamApplication : Application() {
             super.onStop(owner)
             appLockManager.onAppBackgrounded()
         }
+    }
+    
+    override fun getWorkManagerConfiguration(): Configuration {
+        return Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
     }
 }

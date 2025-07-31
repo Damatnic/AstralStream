@@ -1,18 +1,36 @@
 package com.astralplayer.nextplayer.di
 
+import android.app.Application
 import android.content.Context
 import com.astralplayer.nextplayer.data.*
 import com.astralplayer.nextplayer.data.database.*
 import com.astralplayer.nextplayer.feature.codec.CodecPackManager
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
-// Simplified AppModule without Hilt for now - will re-enable after basic functionality works
+@Module
+@InstallIn(SingletonComponent::class)
 object AppModule {
     
-    fun provideSettingsDataStore(context: Context): SettingsDataStore {
+    @Provides
+    @Singleton
+    fun provideContext(application: Application): Context {
+        return application.applicationContext
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSettingsDataStore(@ApplicationContext context: Context): SettingsDataStore {
         return SettingsDataStore(context)
     }
     
-    fun provideCodecPackManager(context: Context): CodecPackManager {
+    @Provides
+    @Singleton
+    fun provideCodecPackManager(@ApplicationContext context: Context): CodecPackManager {
         return CodecPackManager(context)
     }
 }

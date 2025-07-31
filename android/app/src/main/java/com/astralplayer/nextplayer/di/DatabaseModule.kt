@@ -3,53 +3,80 @@ package com.astralplayer.nextplayer.di
 import android.content.Context
 import androidx.room.Room
 import com.astralplayer.nextplayer.data.database.*
+import com.astralplayer.nextplayer.data.dao.VideoDao
+import com.astralplayer.nextplayer.data.dao.HistoryDao
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
-// Simplified DatabaseModule without Hilt for now - will re-enable after basic functionality works
+@Module
+@InstallIn(SingletonComponent::class)
 object DatabaseModule {
     
-    @Volatile
-    private var INSTANCE: AstralVuDatabase? = null
-    
-    fun provideDatabase(context: Context): AstralVuDatabase {
-        return INSTANCE ?: synchronized(this) {
-            val instance = Room.databaseBuilder(
-                context.applicationContext,
-                AstralVuDatabase::class.java,
-                AstralVuDatabase.DATABASE_NAME
-            )
-                .addMigrations(*AstralVuDatabase.getAllMigrations())
-                .fallbackToDestructiveMigration() // For development - remove in production
-                .build()
-            INSTANCE = instance
-            instance
-        }
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AstralVuDatabase {
+        return Room.databaseBuilder(
+            context.applicationContext,
+            AstralVuDatabase::class.java,
+            AstralVuDatabase.DATABASE_NAME
+        )
+            .addMigrations(*AstralVuDatabase.getAllMigrations())
+            .fallbackToDestructiveMigration() // For development - remove in production
+            .build()
     }
     
-    fun provideRecentFilesDao(context: Context): RecentFilesDao {
-        return provideDatabase(context).recentFilesDao()
+    @Provides
+    @Singleton
+    fun provideAstralStreamDatabase(@ApplicationContext context: Context): AstralStreamDatabase {
+        return AstralStreamDatabase.getDatabase(context)
     }
     
-    fun providePlaylistDao(context: Context): PlaylistDao {
-        return provideDatabase(context).playlistDao()
+    @Provides
+    fun provideRecentFilesDao(database: AstralVuDatabase): RecentFilesDao {
+        return database.recentFilesDao()
     }
     
-    fun provideSubtitleDao(context: Context): SubtitleDao {
-        return provideDatabase(context).subtitleDao()
+    @Provides
+    fun providePlaylistDao(database: AstralVuDatabase): PlaylistDao {
+        return database.playlistDao()
     }
     
-    fun provideCloudFileDao(context: Context): CloudFileDao {
-        return provideDatabase(context).cloudFileDao()
+    @Provides
+    fun provideSubtitleDao(database: AstralVuDatabase): SubtitleDao {
+        return database.subtitleDao()
     }
     
-    fun provideDownloadQueueDao(context: Context): DownloadQueueDao {
-        return provideDatabase(context).downloadQueueDao()
+    @Provides
+    fun provideCloudFileDao(database: AstralVuDatabase): CloudFileDao {
+        return database.cloudFileDao()
     }
     
-    fun provideUserPreferenceDao(context: Context): UserPreferenceDao {
-        return provideDatabase(context).userPreferenceDao()
+    @Provides
+    fun provideDownloadQueueDao(database: AstralVuDatabase): DownloadQueueDao {
+        return database.downloadQueueDao()
     }
     
-    fun providePlaybackHistoryDao(context: Context): PlaybackHistoryDao {
-        return provideDatabase(context).playbackHistoryDao()
+    @Provides
+    fun provideUserPreferenceDao(database: AstralVuDatabase): UserPreferenceDao {
+        return database.userPreferenceDao()
+    }
+    
+    @Provides
+    fun providePlaybackHistoryDao(database: AstralVuDatabase): PlaybackHistoryDao {
+        return database.playbackHistoryDao()
+    }
+    
+    @Provides
+    fun provideVideoDao(database: AstralStreamDatabase): VideoDao {
+        return database.videoDao()
+    }
+    
+    @Provides
+    fun provideHistoryDao(database: AstralStreamDatabase): HistoryDao {
+        return database.historyDao()
     }
 }
