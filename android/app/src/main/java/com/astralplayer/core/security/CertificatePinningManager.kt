@@ -177,4 +177,52 @@ class CertificatePinningManager @Inject constructor() {
     fun getPinnedCertificates(hostname: String): List<String> {
         return CERTIFICATE_PINS[hostname] ?: emptyList()
     }
+    
+    /**
+     * Get configured hosts for certificate pinning
+     * 
+     * @return Set of hostnames that have certificate pins configured
+     */
+    fun getConfiguredHosts(): Set<String> {
+        return CERTIFICATE_PINS.keys
+    }
+    
+    /**
+     * Validate certificate pins configuration
+     * 
+     * @throws IllegalArgumentException if any pins are misconfigured
+     */
+    fun validatePins() {
+        CERTIFICATE_PINS.forEach { (host, pins) ->
+            require(pins.isNotEmpty()) { "No pins configured for $host" }
+            pins.forEach { pin ->
+                require(pin.startsWith("sha256/")) { "Invalid pin format for $host: $pin" }
+            }
+        }
+    }
+    
+    /**
+     * Create OkHttpClient with custom interceptor
+     * 
+     * @param additionalInterceptor Optional interceptor to add to the client
+     * @return Configured OkHttpClient with certificate pinning and custom interceptor
+     */
+    fun createPinnedOkHttpClient(additionalInterceptor: okhttp3.Interceptor? = null): OkHttpClient {
+        val builder = createPinnedClient().newBuilder()
+        additionalInterceptor?.let { builder.addInterceptor(it) }
+        return builder.build()
+    }
+}
+
+/**
+ * Security interceptor for additional headers
+ */
+class SecurityInterceptor : okhttp3.Interceptor {
+    override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
+        val request = chain.request().newBuilder()
+            .addHeader("X-Security-Version", "1.0")
+            .addHeader("X-App-Version", BuildConfig.VERSION_NAME)
+            .build()
+        return chain.proceed(request)
+    }
 }

@@ -1,0 +1,140 @@
+apply plugin: 'jacoco'
+
+android {
+    testOptions {
+        unitTests.all {
+            jacoco {
+                includeNoLocationClasses = true
+                excludes = ['jdk.internal.*']
+            }
+        }
+        unitTests.returnDefaultValues = true
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+tasks.register('jacocoTestReport', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+    
+    reports {
+        xml.required = true
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco/jacocoTestReport/html')
+    }
+    
+    def fileFilter = [
+        // Exclude Android generated files
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*',
+        'android/**/*.*',
+        
+        // Exclude Hilt/Dagger generated files
+        '**/*_HiltModules*.*',
+        '**/*_Provide*Factory*.*',
+        '**/*_Factory*.*',
+        '**/*_MembersInjector*.*',
+        '**/Dagger*Component*.*',
+        '**/*Module_*',
+        
+        // Exclude data binding
+        '**/databinding/*',
+        '**/BR.*',
+        
+        // Exclude navigation
+        '**/FragmentNavigation*.*',
+        '**/FragmentDirections*.*',
+        '**/NavArgs*.*',
+        
+        // Exclude Compose generated
+        '**/*ComposableSingletons*.*',
+        
+        // Exclude Room generated
+        '**/*_Impl.*',
+        '**/*Dao_Impl.*'
+    ]
+    
+    def debugTree = fileTree(dir: "${buildDir}/intermediates/javac/debug", excludes: fileFilter)
+    def kotlinDebugTree = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug", excludes: fileFilter)
+    
+    sourceDirectories.from = files([
+        "src/main/java",
+        "src/main/kotlin"
+    ])
+    
+    classDirectories.from = files([debugTree, kotlinDebugTree])
+    executionData.from = fileTree(dir: buildDir, includes: [
+        'jacoco/testDebugUnitTest.exec',
+        'outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec'
+    ])
+}
+
+tasks.register('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+    dependsOn 'jacocoTestReport'
+    
+    violationRules {
+        rule {
+            enabled = true
+            
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.85 // 85% minimum coverage
+            }
+        }
+        
+        rule {
+            enabled = true
+            element = 'CLASS'
+            
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.80 // 80% branch coverage
+            }
+        }
+    }
+    
+    def fileFilter = [
+        // Same exclusions as jacocoTestReport
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*',
+        'android/**/*.*',
+        '**/*_HiltModules*.*',
+        '**/*_Provide*Factory*.*',
+        '**/*_Factory*.*',
+        '**/*_MembersInjector*.*',
+        '**/Dagger*Component*.*',
+        '**/*Module_*',
+        '**/databinding/*',
+        '**/BR.*',
+        '**/FragmentNavigation*.*',
+        '**/FragmentDirections*.*',
+        '**/NavArgs*.*',
+        '**/*ComposableSingletons*.*',
+        '**/*_Impl.*',
+        '**/*Dao_Impl.*'
+    ]
+    
+    def debugTree = fileTree(dir: "${buildDir}/intermediates/javac/debug", excludes: fileFilter)
+    def kotlinDebugTree = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug", excludes: fileFilter)
+    
+    sourceDirectories.from = files([
+        "src/main/java",
+        "src/main/kotlin"
+    ])
+    
+    classDirectories.from = files([debugTree, kotlinDebugTree])
+    executionData.from = fileTree(dir: buildDir, includes: [
+        'jacoco/testDebugUnitTest.exec',
+        'outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec'
+    ])
+}

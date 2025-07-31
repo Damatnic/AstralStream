@@ -9,6 +9,8 @@ plugins {
     id 'com.google.firebase.crashlytics'
 }
 
+apply from: 'jacoco.gradle'
+
 android {
     namespace = 'com.astralplayer'
     compileSdk = 34
