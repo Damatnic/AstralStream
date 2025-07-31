@@ -1,0 +1,34 @@
+requirements.txt
+================
+pyyaml>=6.0
+pathlib2>=2.3.7
+click>=8.1.0
+colorama>=0.4.6
+tqdm>=4.65.0
+jinja2>=3.1.2
+
+setup.py
+========
+from setuptools import setup, find_packages
+
+setup(
+    name="astralstream-elite-agent",
+    version="1.0.0",
+    description="Elite upgrade agent for AstralStream video player",
+    author="AstralStream Team",
+    packages=find_packages(),
+    install_requires=[
+        "pyyaml>=6.0",
+        "pathlib2>=2.3.7",
+        "click>=8.1.0",
+        "colorama>=0.4.6",
+        "tqdm>=4.65.0",
+        "jinja2>=3.1.2",
+    ],
+    entry_points={
+        "console_scripts": [
+            "astral-upgrade=astralstream_elite_agent:main",
+        ],
+    },
+    python_requires=">=3.8",
+)

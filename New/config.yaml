@@ -1,0 +1,282 @@
+# AstralStream Elite Agent Configuration
+# Complete configuration for upgrading your video player to 10/10 elite status
+
+project:
+  name: "AstralStream"
+  version: "2.0.0-elite"
+  description: "Elite Android Video Player with AI Subtitles"
+  package_name: "com.astralplayer"
+  min_sdk: 21
+  target_sdk: 34
+
+# Quality targets for the upgrade
+quality_targets:
+  code_coverage: 85
+  performance_score: 95
+  security_score: 100
+  user_experience_score: 95
+  maintainability_score: 90
+
+# Features to implement during upgrade
+upgrade_features:
+  architecture:
+    clean_architecture: true
+    mvvm_pattern: true
+    repository_pattern: true
+    use_cases: true
+    dependency_injection: "hilt"
+    interface_segregation: true
+    
+  security:
+    encryption: "AES-256"
+    keystore: "AndroidKeyStore"
+    certificate_pinning: true
+    obfuscation: true
+    secure_storage: true
+    biometric_auth: true
+    content_protection: true
+    
+  performance:
+    lazy_loading: true
+    memory_optimization: true
+    cache_size_mb: 500
+    hardware_acceleration: true
+    adaptive_streaming: true
+    codec_optimization: true
+    resource_pooling: true
+    
+  ai_features:
+    multi_provider_support: true
+    offline_fallback: true
+    supported_languages: 15
+    real_time_translation: true
+    speech_recognition: true
+    auto_generation: true
+    
+  player_features:
+    offline_playback: true
+    picture_in_picture: true
+    background_playback: true
+    gesture_controls: true
+    haptic_feedback: true
+    chromecast_support: true
+    
+  testing:
+    unit_tests: true
+    ui_tests: true
+    integration_tests: true
+    performance_tests: true
+    security_tests: true
+    minimum_coverage: 80
+
+# Code standards and conventions
+code_standards:
+  kotlin:
+    version: "1.9.24"
+    coroutines: true
+    flow: true
+    null_safety: "strict"
+    coding_conventions: "official"
+    
+  android:
+    min_sdk: 21
+    target_sdk: 34
+    compose: true
+    material3: true
+    jetpack: true
+    
+  patterns:
+    - "clean_architecture"
+    - "repository_pattern"
+    - "observer_pattern"
+    - "factory_pattern"
+    - "builder_pattern"
+
+# Dependencies to add/update
+dependencies:
+  core:
+    - "androidx.media3:media3-exoplayer:1.3.0"
+    - "androidx.media3:media3-exoplayer-hls:1.3.0"
+    - "androidx.media3:media3-exoplayer-dash:1.3.0"
+    - "androidx.media3:media3-ui:1.3.0"
+    - "com.google.dagger:hilt-android:2.48"
+    - "androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0"
+    
+  ui:
+    - "androidx.compose.bom:2024.02.00"
+    - "androidx.compose.material3:material3"
+    - "androidx.compose.ui:ui-tooling-preview"
+    - "androidx.activity:activity-compose:1.8.2"
+    
+  networking:
+    - "com.squareup.okhttp3:okhttp:4.12.0"
+    - "com.squareup.retrofit2:retrofit:2.9.0"
+    - "com.squareup.retrofit2:converter-gson:2.9.0"
+    
+  security:
+    - "androidx.security:security-crypto:1.1.0-alpha06"
+    - "androidx.biometric:biometric:1.1.0"
+    
+  ai:
+    - "com.google.ai.client.generativeai:generativeai:0.1.2"
+    - "com.google.mlkit:language-id:17.0.4"
+    - "com.google.mlkit:translate:17.0.1"
+    
+  database:
+    - "androidx.room:room-runtime:2.6.1"
+    - "androidx.room:room-ktx:2.6.1"
+    
+  testing:
+    - "junit:junit:4.13.2"
+    - "io.mockk:mockk:1.13.8"
+    - "androidx.compose.ui:ui-test-junit4"
+    - "androidx.test.ext:junit:1.1.5"
+    - "androidx.test.espresso:espresso-core:3.5.1"
+    
+  analytics:
+    - "com.google.firebase:firebase-analytics-ktx"
+    - "com.google.firebase:firebase-crashlytics-ktx"
+
+# Build optimization rules
+optimization_rules:
+  proguard:
+    minify: true
+    shrink_resources: true
+    optimize: true
+    obfuscate: true
+    
+  r8:
+    full_mode: true
+    optimization_passes: 5
+    
+  gradle:
+    parallel_builds: true
+    configure_on_demand: true
+    daemon: true
+    caching: true
+
+# Analytics and monitoring
+analytics:
+  providers:
+    firebase_analytics: true
+    firebase_crashlytics: true
+    custom_events: true
+    performance_monitoring: true
+    
+  events:
+    - "video_playback_start"
+    - "video_playback_complete"
+    - "subtitle_generation"
+    - "gesture_usage"
+    - "quality_change"
+    - "error_occurred"
+
+# Documentation generation
+documentation:
+  generate:
+    readme: true
+    api_docs: true
+    architecture_diagrams: true
+    user_guides: true
+    changelog: true
+    contribution_guide: true
+    
+  formats:
+    - "markdown"
+    - "html"
+    - "pdf"
+
+# Package structure optimization
+package_structure:
+  core:
+    - "browser"
+    - "intent"
+    - "extractor"
+    - "codec"
+    - "system"
+    - "audio"
+    - "config"
+    - "performance"
+    - "error"
+    
+  features:
+    - "ai"
+    - "player"
+    - "gesture"
+    - "streaming"
+    - "offline"
+    
+  data:
+    - "database"
+    - "repository"
+    - "cache"
+    - "network"
+    
+  domain:
+    - "repository"
+    - "player"
+    - "model"
+    - "usecase"
+    
+  presentation:
+    - "player"
+    - "ui"
+    - "viewmodel"
+
+# Security configurations
+security_config:
+  api_key_encryption: true
+  certificate_pins:
+    - "api.openai.com"
+    - "generativelanguage.googleapis.com"
+    - "api.assemblyai.com"
+    
+  content_protection:
+    drm_support: true
+    watermarking: false
+    
+  privacy:
+    data_anonymization: true
+    minimal_permissions: true
+    gdpr_compliance: true
+
+# Performance benchmarks
+performance_benchmarks:
+  startup_time_ms: 800
+  memory_usage_mb: 120
+  apk_size_mb: 28
+  battery_efficiency: 95
+  frame_rate_fps: 60
+  
+# Supported video formats
+supported_formats:
+  containers:
+    - "mp4"
+    - "mkv"
+    - "avi"
+    - "webm"
+    - "mov"
+    - "wmv"
+    - "flv"
+    - "3gp"
+    
+  codecs:
+    video:
+      - "h264"
+      - "h265"
+      - "vp8"
+      - "vp9"
+      - "av1"
+    audio:
+      - "aac"
+      - "mp3"
+      - "opus"
+      - "vorbis"
+      - "ac3"
+      
+  streaming:
+    - "hls"
+    - "dash"
+    - "smooth"
+    - "rtmp"
+    - "rtsp"

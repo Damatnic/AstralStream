@@ -1,0 +1,106 @@
+# AstralStream Elite Agent Configuration
+# This file defines the upgrade parameters and quality targets
+
+project:
+  name: "AstralStream"
+  version: "2.0.0-elite"
+  description: "Elite Android Video Player with AI Subtitles"
+
+quality_targets:
+  code_coverage: 85
+  performance_score: 95
+  security_score: 100
+  user_experience_score: 95
+  
+upgrade_features:
+  architecture:
+    - clean_architecture: true
+    - mvvm_pattern: true
+    - repository_pattern: true
+    - use_cases: true
+    - dependency_injection: "hilt"
+    
+  security:
+    - encryption: "AES-256"
+    - keystore: "AndroidKeyStore"
+    - certificate_pinning: true
+    - obfuscation: true
+    - secure_storage: true
+    
+  performance:
+    - lazy_loading: true
+    - memory_optimization: true
+    - cache_size_mb: 500
+    - hardware_acceleration: true
+    - adaptive_streaming: true
+    
+  ai_features:
+    - multi_provider_support: true
+    - offline_fallback: true
+    - supported_languages: 15
+    - real_time_translation: true
+    
+  testing:
+    - unit_tests: true
+    - ui_tests: true
+    - integration_tests: true
+    - performance_tests: true
+    - minimum_coverage: 80
+    
+code_standards:
+  kotlin:
+    - version: "1.9.24"
+    - coroutines: true
+    - flow: true
+    - null_safety: "strict"
+    
+  android:
+    - min_sdk: 21
+    - target_sdk: 34
+    - compose: true
+    - material3: true
+    
+dependencies:
+  core:
+    - "androidx.media3:media3-exoplayer:1.3.0"
+    - "androidx.media3:media3-exoplayer-hls:1.3.0"
+    - "androidx.media3:media3-exoplayer-dash:1.3.0"
+    - "com.google.dagger:hilt-android:2.48"
+    
+  security:
+    - "androidx.security:security-crypto:1.1.0-alpha06"
+    - "androidx.biometric:biometric:1.1.0"
+    
+  ai:
+    - "com.google.ai.client.generativeai:generativeai:0.1.2"
+    - "com.google.mlkit:language-id:17.0.4"
+    
+  testing:
+    - "junit:junit:4.13.2"
+    - "io.mockk:mockk:1.13.8"
+    - "androidx.compose.ui:ui-test-junit4"
+    
+optimization_rules:
+  proguard:
+    - minify: true
+    - shrink_resources: true
+    - optimize: true
+    - obfuscate: true
+    
+  r8:
+    - full_mode: true
+    - optimization_passes: 5
+    
+analytics:
+  providers:
+    - firebase_analytics: true
+    - firebase_crashlytics: true
+    - custom_events: true
+    
+documentation:
+  generate:
+    - readme: true
+    - api_docs: true
+    - architecture_diagrams: true
+    - user_guides: true
+    - changelog: true

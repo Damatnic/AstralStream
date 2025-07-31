@@ -1,0 +1,8 @@
+pyyaml>=6.0
+pathlib2>=2.3.7
+click>=8.1.0
+colorama>=0.4.6
+tqdm>=4.65.0
+jinja2>=3.1.2
+typing-extensions>=4.5.0
+dataclasses>=0.8
