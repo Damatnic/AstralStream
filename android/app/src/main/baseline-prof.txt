@@ -1,0 +1,73 @@
+# Elite Baseline Profile for AstralStream
+# Optimizes startup performance to <1 second
+
+# Application startup
+L+com/astralplayer/AstralPlayerApplication;->onCreate()V
+L+com/astralplayer/AstralPlayerApplication;->initializeDependencies()V
+
+# Main Activity and navigation
+L+com/astralplayer/astralstream/MainActivity;->onCreate(Landroid/os/Bundle;)V
+L+com/astralplayer/astralstream/navigation/AstralStreamNavigation;->setupNavigation()V
+
+# Critical ViewModels
+L+com/astralplayer/astralstream/viewmodel/MainViewModel;-><init>()V
+L+com/astralplayer/astralstream/viewmodel/VideoPlayerViewModel;-><init>()V
+
+# Database initialization
+L+com/astralplayer/astralstream/data/database/AstralStreamDatabase;->getInstance()
+L+com/astralplayer/astralstream/data/database/AstralStreamDatabase;->videoDao()
+L+com/astralplayer/astralstream/data/database/AstralStreamDatabase;->playlistDao()
+
+# Repository layer
+L+com/astralplayer/astralstream/data/repository/SettingsRepositoryImpl;-><init>()V
+L+com/astralplayer/domain/repository/VideoRepository;->getRecentVideos()
+
+# UI Components - Home Screen
+L+com/astralplayer/astralstream/ui/screens/HomeScreen;
+L+com/astralplayer/astralstream/ui/components/VideoThumbnail;
+
+# Enhanced Video Player
+L+com/astralplayer/presentation/player/EnhancedVideoPlayerActivity;->onCreate()V
+L+com/astralplayer/presentation/player/EnhancedVideoPlayerActivity;->initializeElitePlayer()V
+L+com/astralplayer/presentation/player/EliteVideoPlayerScreen;
+
+# ExoPlayer initialization
+L+androidx/media3/exoplayer/ExoPlayer$Builder;-><init>()V
+L+androidx/media3/exoplayer/DefaultRenderersFactory;-><init>()V
+L+androidx/media3/exoplayer/trackselection/DefaultTrackSelector;-><init>()V
+
+# Compose UI
+L+androidx/compose/runtime/**
+L+androidx/compose/ui/**
+L+androidx/compose/material3/**
+
+# Coroutines
+L+kotlinx/coroutines/**
+
+# Critical security components
+L+com/astralplayer/core/security/SecurityManager;-><init>()V
+L+com/astralplayer/core/security/SecurityManager;->initializeEncryptedStorage()V
+
+# Performance monitoring
+L+com/astralplayer/core/performance/StartupPerformanceManager;->markAppStart()V
+L+com/astralplayer/core/performance/StartupPerformanceManager;->initializeCriticalComponents()V
+
+# Dependency injection
+L+dagger/hilt/**
+L+com/astralplayer/astralstream/di/AppModule;
+L+com/astralplayer/astralstream/di/AppModule_**Factory;
+
+# Theme and resources
+L+com/astralplayer/astralstream/ui/theme/**
+
+# Intent handling for video playback
+L+com/astralplayer/core/intent/VideoIntentHandler;->extractVideoInfo()
+L+com/astralplayer/core/browser/BrowserIntentHandler;->extractBrowserData()
+
+# Frequently used utilities
+L+timber/log/Timber;->d()V
+L+timber/log/Timber;->i()V
+
+# OkHttp for networking
+L+okhttp3/OkHttpClient;-><init>()V
+L+okhttp3/OkHttpClient$Builder;-><init>()V
