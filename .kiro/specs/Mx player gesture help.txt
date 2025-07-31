@@ -1,0 +1,960 @@
+ou've got a fantastic vision for a truly fluid video player. Combining all the details into one comprehensive guide will make it super clear for your AI bot to follow. Here's the complete breakdown, including the conceptual code structure and all the nuances.
+
+Complete Guide: Implementing MX Player-Like Gestures for Your AI Bot's Video Player
+This guide provides a detailed blueprint for creating a highly responsive and intuitive gesture-controlled video player, mimicking the fluid user experience of MX Player.
+
+I. Core Concepts and Principles
+Event-Driven Interaction: The entire system relies on capturing and interpreting MotionEvents (ACTION_DOWN, ACTION_MOVE, ACTION_UP, ACTION_CANCEL, ACTION_POINTER_DOWN, ACTION_POINTER_UP).
+
+Gesture Detectors: Leverage Android's GestureDetector (for single-tap, double-tap, long-press, fling) and ScaleGestureDetector (for pinch-to-zoom).
+
+Exclusive Detection: A crucial aspect of fluid UX. Once a gesture type (e.g., horizontal seek, vertical volume, vertical brightness) is initiated and exceeds a "touch slop" threshold, it should exclusively claim the subsequent ACTION_MOVE events until the ACTION_UP or ACTION_CANCEL event. This prevents ambiguous or conflicting actions.
+
+Pressure Zones / Activation Areas: Specific regions of the screen (e.g., left half for brightness, right half for volume) determine the intent of a vertical swipe.
+
+Adaptive Sensitivity & Acceleration: Adjust the effect of a gesture (e.g., seek distance per pixel, continuous seek speed) based on the magnitude or duration of the gesture.
+
+Immediate Visual Feedback: Provide clear, animated overlays that update in real-time as the gesture progresses.
+
+Smooth Transitions: Use animation APIs (e.g., ViewPropertyAnimator) for fading in/out overlays, ensuring a non-jarring experience.
+
+System Integration (Volume/Brightness): Interact with AudioManager for volume and Window attributes for in-app brightness. Avoid system UI popups for these adjustments to maintain control over your custom UI.
+
+II. Essential Components
+GestureVideoView (Custom FrameLayout):
+
+This will be your primary View that overlays your actual video player (VideoView, ExoPlayer's PlayerView, etc.).
+
+It implements OnTouchListener to intercept all touch events.
+
+It manages instances of GestureDetector and ScaleGestureDetector.
+
+It contains the custom logic for horizontal seek, vertical volume/brightness, and continuous seek.
+
+It houses and manages the lifecycle of your custom UI overlays (seek text, volume/brightness bars, play/pause icon).
+
+VideoPlayerInterface (Abstract Layer):
+
+An interface that defines common video player operations (seek, play, pause, get duration, set volume, set brightness, set playback speed).
+
+This decouples your gesture logic from the specific video player implementation (e.g., MediaPlayer, ExoPlayer).
+
+Concrete VideoPlayerInterface Implementations:
+
+E.g., AndroidVideoPlayerWrapper for VideoView or ExoPlayerWrapper for ExoPlayer. These translate the interface calls to the actual player's API.
+
+UI Overlay Views:
+
+TextView for seek time display.
+
+Custom Views or ProgressBars for volume and brightness sliders.
+
+ImageView for play/pause icon.
+
+III. Detailed Code Structure (Android/Java)
+Java
+
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Color;
+import android.media.AudioManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Handler; // Or use View.postDelayed directly
+import android.os.Looper;
+import android.provider.Settings;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.GestureDetector;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
+import android.view.View;
+import android.view.ViewConfiguration;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.VideoView; // Example: Replace with ExoPlayer's PlayerView for ExoPlayer
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import java.util.Locale;
+
+// Define a placeholder for your video player (e.g., an interface for MediaPlayer or ExoPlayer)
+// This makes the GestureVideoView independent of the actual player implementation.
+interface VideoPlayerInterface {
+    void seekTo(long positionMs);
+    long getCurrentPosition();
+    long getDuration();
+    void play();
+    void pause();
+    void setVolume(float volume); // 0.0 to 1.0
+    void setScreenBrightness(float brightness); // 0.0 to 1.0
+    void setPlaybackSpeed(float speed); // e.g., 0.5f, 1.0f, 2.0f
+    boolean isPlaying();
+    // Add other methods your gestures might need, e.g., getAspectRation, etc.
+}
+
+// --- Wrapper for Android's standard VideoView ---
+// Replace this with an ExoPlayerWrapper if you're using ExoPlayer
+class AndroidVideoPlayerWrapper implements VideoPlayerInterface {
+    private VideoView videoView;
+    private Context context; // Needed for AudioManager for actual volume control
+
+    public AndroidVideoPlayerWrapper(VideoView videoView, Context context) {
+        this.videoView = videoView;
+        this.context = context;
+    }
+
+    @Override
+    public void seekTo(long positionMs) {
+        videoView.seekTo((int) positionMs);
+    }
+
+    @Override
+    public long getCurrentPosition() {
+        return videoView.getCurrentPosition();
+    }
+
+    @Override
+    public long getDuration() {
+        return videoView.getDuration();
+    }
+
+    @Override
+    public void play() {
+        videoView.start();
+    }
+
+    @Override
+    public void pause() {
+        videoView.pause();
+    }
+
+    @Override
+    public void setVolume(float volume) {
+        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        int newVolume = (int) (volume * maxVolume);
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0); // 0 for no flags (no system UI, no sound/vibrate)
+    }
+
+    @Override
+    public void setScreenBrightness(float brightness) {
+        // This method is handled directly by the GestureVideoView using Window attributes
+        Log.w("VideoPlayerWrapper", "Screen brightness controlled by Window, not directly by player wrapper.");
+    }
+
+    @Override
+    public void setPlaybackSpeed(float speed) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            videoView.setPlaybackParams(videoView.getPlaybackParams().setSpeed(speed));
+        } else {
+            Log.w("VideoPlayerWrapper", "Playback speed adjustment requires API 23+ for VideoView.");
+        }
+    }
+
+    @Override
+    public boolean isPlaying() {
+        return videoView.isPlaying();
+    }
+
+    // You might want to expose the actual VideoView if your activity needs direct access
+    public VideoView getActualVideoView() {
+        return videoView;
+    }
+}
+
+// --- Wrapper for ExoPlayer (Example - requires ExoPlayer library) ---
+/*
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.PlaybackParameters;
+import com.google.android.exoplayer2.ui.PlayerView;
+
+class ExoPlayerWrapper implements VideoPlayerInterface {
+    private ExoPlayer player;
+    private PlayerView playerView;
+
+    public ExoPlayerWrapper(PlayerView playerView) {
+        this.playerView = playerView;
+        this.player = (ExoPlayer) playerView.getPlayer();
+        if (this.player == null) {
+            // Player not yet set, you might need to initialize it here or ensure it's set externally
+            Log.e("ExoPlayerWrapper", "ExoPlayer not set on PlayerView. Please ensure playerView.setPlayer(player) is called.");
+        }
+    }
+
+    @Override
+    public void seekTo(long positionMs) {
+        if (player != null) player.seekTo(positionMs);
+    }
+
+    @Override
+    public long getCurrentPosition() {
+        return player != null ? player.getCurrentPosition() : 0;
+    }
+
+    @Override
+    public long getDuration() {
+        return player != null ? player.getDuration() : 0;
+    }
+
+    @Override
+    public void play() {
+        if (player != null) player.play();
+    }
+
+    @Override
+    public void pause() {
+        if (player != null) player.pause();
+    }
+
+    @Override
+    public void setVolume(float volume) {
+        if (player != null) player.setVolume(volume);
+    }
+
+    @Override
+    public void setScreenBrightness(float brightness) {
+        // ExoPlayer does not control screen brightness directly.
+        // This is handled by the Window attributes in GestureVideoView.
+    }
+
+    @Override
+    public void setPlaybackSpeed(float speed) {
+        if (player != null) {
+            PlaybackParameters playbackParameters = new PlaybackParameters(speed);
+            player.setPlaybackParameters(playbackParameters);
+        }
+    }
+
+    @Override
+    public boolean isPlaying() {
+        return player != null && player.isPlaying();
+    }
+
+    public PlayerView getActualPlayerView() {
+        return playerView;
+    }
+}
+*/
+
+// --- Main GestureVideoView Class ---
+public class GestureVideoView extends FrameLayout {
+
+    private static final String TAG = "GestureVideoView";
+
+    private VideoPlayerInterface videoPlayer;
+    private GestureDetector gestureDetector;
+    private ScaleGestureDetector scaleGestureDetector;
+
+    // Gesture state variables for exclusive detection
+    private float initialTouchX, initialTouchY; // Initial touch point for drag detection
+    private long currentSeekPositionMs; // To calculate seek relative to start of drag
+    private float currentVolume; // Stored as 0.0-1.0 float
+    private float currentBrightness; // Stored as 0.0-1.0 float
+
+    private boolean isSeeking = false;
+    private boolean isAdjustingVolume = false;
+    private boolean isAdjustingBrightness = false;
+    private boolean isLongPressSeeking = false; // For continuous seek
+
+    // Constants for sensitivity and thresholds
+    private final int SWIPE_MIN_DISTANCE_PX; // Minimum distance to register a swipe (converted from DP)
+    private static final int SEEK_SENSITIVITY_MS_PER_PIXEL = 100; // 100ms per pixel of drag for horizontal seek
+    private static final float VOLUME_BRIGHTNESS_SENSITIVITY_PERCENT_PER_PIXEL = 0.1f; // 0.1% change per pixel for vertical swipes
+    private static final long LONG_PRESS_SEEK_BASE_INTERVAL_MS = 50; // How often to update continuous seek
+    private static final long LONG_PRESS_SEEK_BASE_AMOUNT_MS = 250; // Initial seek amount per interval
+    private static final long LONG_PRESS_ACCELERATION_THRESHOLD_MS = 2000; // Time held to double speed
+
+    // UI elements for overlays (ensure these are added as children in init())
+    private TextView seekOverlayText;
+    private TextView volumeOverlayText; // Example: Shows % or a simple bar
+    private TextView brightnessOverlayText; // Example: Shows % or a simple bar
+    private ImageView playPauseOverlayIcon; // Center icon
+
+    // System services
+    private AudioManager audioManager;
+    private Window window; // For brightness control
+
+    // Runnables for delayed hiding of overlays and continuous seek
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable hideSeekOverlayRunnable = this::hideSeekOverlay;
+    private final Runnable hideVolumeOverlayRunnable = this::hideVolumeOverlay;
+    private final Runnable hideBrightnessOverlayRunnable = this::hideBrightnessOverlay;
+    private Runnable continuousSeekRunnable; // Managed dynamically
+
+    public GestureVideoView(@NonNull Context context) {
+        super(context);
+        SWIPE_MIN_DISTANCE_PX = ViewConfiguration.get(context).getScaledTouchSlop();
+        init(context);
+    }
+
+    public GestureVideoView(@NonNull Context context, @Nullable AttributeSet attrs) {
+        super(context, attrs);
+        SWIPE_MIN_DISTANCE_PX = ViewConfiguration.get(context).getScaledTouchSlop();
+        init(context);
+    }
+
+    private void init(Context context) {
+        // 1. Add your actual video player View (e.g., VideoView or ExoPlayer's PlayerView)
+        // Make sure it matches MATCH_PARENT for proper touch area.
+        VideoView internalVideoView = new VideoView(context); // Or new PlayerView(context) for ExoPlayer
+        LayoutParams videoParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+        internalVideoView.setLayoutParams(videoParams);
+        addView(internalVideoView);
+
+        // Initialize the VideoPlayerInterface wrapper
+        this.videoPlayer = new AndroidVideoPlayerWrapper(internalVideoView, context);
+        // For ExoPlayer: this.videoPlayer = new ExoPlayerWrapper(internalPlayerView);
+
+        // 2. Initialize UI Overlays (add these as children to GestureVideoView, initially hidden)
+        // Seek Overlay Text
+        seekOverlayText = new TextView(context);
+        LayoutParams seekTextParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        seekOverlayText.setLayoutParams(seekTextParams);
+        seekOverlayText.setBackgroundColor(Color.parseColor("#80000000")); // Semi-transparent black
+        seekOverlayText.setTextColor(Color.WHITE);
+        seekOverlayText.setPadding(dpToPx(15), dpToPx(8), dpToPx(15), dpToPx(8));
+        seekOverlayText.setVisibility(GONE);
+        addView(seekOverlayText);
+
+        // Volume Overlay Text (or a ProgressBar) - positioned right
+        volumeOverlayText = new TextView(context);
+        LayoutParams volumeParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.CENTER_VERTICAL);
+        volumeOverlayText.setLayoutParams(volumeParams);
+        volumeOverlayText.setBackgroundColor(Color.parseColor("#80000000"));
+        volumeOverlayText.setTextColor(Color.WHITE);
+        volumeOverlayText.setPadding(dpToPx(8), dpToPx(15), dpToPx(8), dpToPx(15));
+        volumeOverlayText.setVisibility(GONE);
+        addView(volumeOverlayText);
+
+        // Brightness Overlay Text (or a ProgressBar) - positioned left
+        brightnessOverlayText = new TextView(context);
+        LayoutParams brightnessParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL);
+        brightnessOverlayText.setLayoutParams(brightnessParams);
+        brightnessOverlayText.setBackgroundColor(Color.parseColor("#80000000"));
+        brightnessOverlayText.setTextColor(Color.WHITE);
+        brightnessOverlayText.setPadding(dpToPx(8), dpToPx(15), dpToPx(8), dpToPx(15));
+        brightnessOverlayText.setVisibility(GONE);
+        addView(brightnessOverlayText);
+
+        // Play/Pause Icon
+        playPauseOverlayIcon = new ImageView(context);
+        LayoutParams iconParams = new LayoutParams(dpToPx(70), dpToPx(70), Gravity.CENTER);
+        playPauseOverlayIcon.setLayoutParams(iconParams);
+        playPauseOverlayIcon.setVisibility(GONE);
+        addView(playPauseOverlayIcon);
+
+
+        // 3. Initialize Gesture Detectors
+        gestureDetector = new GestureDetector(context, new CustomGestureListener());
+        scaleGestureDetector = new ScaleGestureDetector(context, new CustomScaleListener());
+
+        // 4. Get System Services
+        audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        if (context instanceof Activity) {
+            window = ((Activity) context).getWindow();
+        } else {
+            Log.e(TAG, "Context is not an Activity. Cannot control screen brightness via Window.");
+        }
+
+        // 5. Set the master touch listener for this view
+        setOnTouchListener((v, event) -> {
+            // Priority 1: ScaleGestureDetector (for pinch-to-zoom)
+            boolean handledByScale = scaleGestureDetector.onTouchEvent(event);
+
+            // Priority 2: GestureDetector (for double-tap, long-press, single-tap)
+            // Only process with GestureDetector if not currently scaling
+            boolean handledByGesture = false;
+            if (!scaleGestureDetector.isInProgress()) {
+                handledByGesture = gestureDetector.onTouchEvent(event);
+            }
+
+            // Priority 3: Custom drag logic (horizontal seek, vertical volume/brightness)
+            // Only process if no other detector has claimed the event
+            // and it's a single pointer.
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                initialTouchX = event.getX();
+                initialTouchY = event.getY();
+                currentSeekPositionMs = videoPlayer.getCurrentPosition(); // Capture initial state
+                currentVolume = getSystemVolume();
+                currentBrightness = getScreenBrightness();
+                isLongPressSeeking = false; // Reset long press state on new touch
+                handler.removeCallbacks(continuousSeekRunnable); // Ensure old continuous seek is stopped
+                return true; // Consume the DOWN event to start potential custom gesture
+            } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                // Only proceed if not handled by standard detectors AND it's a single finger
+                if (!handledByGesture && !handledByScale && event.getPointerCount() == 1) {
+                    float deltaX = event.getX() - initialTouchX;
+                    float deltaY = event.getY() - initialTouchY;
+
+                    float absDeltaX = Math.abs(deltaX);
+                    float absDeltaY = Math.abs(deltaY);
+
+                    // Determine gesture type if not already identified and movement threshold met
+                    if (!isSeeking && !isAdjustingVolume && !isAdjustingBrightness) {
+                        if (absDeltaX > SWIPE_MIN_DISTANCE_PX && absDeltaX > absDeltaY) {
+                            isSeeking = true;
+                            // Ensure exclusivity: disable vertical flags
+                            isAdjustingVolume = false;
+                            isAdjustingBrightness = false;
+                            Log.d(TAG, "Gesture: Initiated Horizontal Seek");
+                        } else if (absDeltaY > SWIPE_MIN_DISTANCE_PX && absDeltaY > absDeltaX) {
+                            if (initialTouchX < getWidth() / 2) { // Left half for brightness
+                                isAdjustingBrightness = true;
+                                // Ensure exclusivity: disable horizontal and other vertical flags
+                                isSeeking = false;
+                                isAdjustingVolume = false;
+                                Log.d(TAG, "Gesture: Initiated Brightness Adjust");
+                            } else { // Right half for volume
+                                isAdjustingVolume = true;
+                                // Ensure exclusivity: disable horizontal and other vertical flags
+                                isSeeking = false;
+                                isAdjustingBrightness = false;
+                                Log.d(TAG, "Gesture: Initiated Volume Adjust");
+                            }
+                        }
+                    }
+
+                    // Execute the identified gesture if active
+                    if (isSeeking) {
+                        handleSeekGesture(deltaX);
+                        return true; // Consume event as it's part of an active custom drag
+                    } else if (isAdjustingVolume) {
+                        handleVolumeGesture(deltaY);
+                        return true; // Consume event
+                    } else if (isAdjustingBrightness) {
+                        handleBrightnessGesture(deltaY);
+                        return true; // Consume event
+                    } else if (isLongPressSeeking) {
+                        // If long-press continuous seek is active, absorb move events
+                        return true;
+                    }
+                }
+            } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                // On release, reset all flags and hide overlays
+                if (isSeeking) {
+                    // Seek was committed continuously during handleSeekGesture, so just hide UI
+                    hideSeekOverlay();
+                } else if (isAdjustingVolume) {
+                    hideVolumeOverlay();
+                } else if (isAdjustingBrightness) {
+                    hideBrightnessOverlay();
+                }
+                // Reset all gesture states
+                isSeeking = false;
+                isAdjustingVolume = false;
+                isAdjustingBrightness = false;
+                isLongPressSeeking = false;
+                // Stop any scheduled continuous seek
+                handler.removeCallbacks(continuousSeekRunnable);
+                Log.d(TAG, "Gesture: UP/CANCEL - All states reset.");
+            }
+
+            // Return true if any of the gesture detectors or custom logic consumed the event.
+            // This prevents underlying views from receiving the event if it's handled here.
+            return handledByGesture || handledByScale;
+        });
+    }
+
+    // --- Public access to the video player wrapper (for Activity to load video) ---
+    public VideoPlayerInterface getVideoPlayer() {
+        return videoPlayer;
+    }
+
+    // --- Custom Gesture Listener ---
+    private class CustomGestureListener extends GestureDetector.SimpleOnGestureListener {
+        @Override
+        public boolean onDown(MotionEvent e) {
+            // onDown should generally return true to indicate interest in the current gesture sequence.
+            return true;
+        }
+
+        @Override
+        public boolean onSingleTapConfirmed(MotionEvent e) {
+            // This is called when a single tap occurs and no double-tap follows.
+            Log.d(TAG, "Gesture: Single Tap Confirmed (Toggle UI)");
+            // Implement your UI toggle logic here (e.g., show/hide player controls)
+            // Example: togglePlayerControlsVisibility();
+            return true;
+        }
+
+        @Override
+        public boolean onDoubleTap(MotionEvent e) {
+            // Play/Pause toggle
+            Log.d(TAG, "Gesture: Double Tap (Play/Pause)");
+            if (videoPlayer.isPlaying()) {
+                videoPlayer.pause();
+                showPlayPauseOverlay(false); // Show pause icon
+            } else {
+                videoPlayer.play();
+                showPlayPauseOverlay(true); // Show play icon
+            }
+            return true;
+        }
+
+        @Override
+        public void onLongPress(MotionEvent e) {
+            Log.d(TAG, "Gesture: Long Press Detected");
+            // Initiate continuous seek
+            startContinuousSeek(e.getX());
+        }
+
+        // You can override onFling if you want fling gestures to do something specific,
+        // but for MX Player's seek, onMove handling is often sufficient.
+        /*
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            // Example: If a very fast horizontal fling, maybe jump by a larger amount
+            // You'd check Math.abs(velocityX) and Math.abs(velocityY) to determine direction
+            Log.d(TAG, "Gesture: Fling - velocityX=" + velocityX + ", velocityY=" + velocityY);
+            return super.onFling(e1, e2, velocityX, velocityY);
+        }
+        */
+    }
+
+    // --- Custom Scale Listener (for Pinch-to-Zoom) ---
+    private class CustomScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        private float currentZoomFactor = 1.0f; // Initial zoom factor
+        // For advanced panning after zoom, you'd track focus points.
+        // For simplicity, we'll just apply zoom on the video surface.
+
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+            Log.d(TAG, "Gesture: Scale Begin");
+            // Reset or store initial zoom if needed
+            // You might show a zoom level overlay here
+            return true; // Return true to continue with the gesture
+        }
+
+        @Override
+        public boolean onScale(ScaleGestureDetector detector) {
+            float scaleFactor = detector.getScaleFactor();
+            currentZoomFactor *= scaleFactor; // Accumulate the zoom factor
+
+            // Clamp zoom factor to reasonable limits (e.g., 0.5x to 4.0x)
+            currentZoomFactor = Math.max(0.5f, Math.min(currentZoomFactor, 4.0f));
+
+            Log.d(TAG, "Gesture: Scaling - Current Zoom Factor: " + currentZoomFactor);
+            // Apply zoom to your video player's rendering surface.
+            // This is highly dependent on your video player implementation.
+            // For a basic View, you might use setScaleX/Y. For SurfaceView/TextureView,
+            // it's more complex (e.g., matrix transformations in onDraw/onSurfaceTextureUpdated).
+            // Example for a simple scaling of the internalVideoView (if it's a standard View):
+            // videoPlayer.getActualVideoView().setScaleX(currentZoomFactor);
+            // videoPlayer.getActualVideoView().setScaleY(currentZoomFactor);
+            // You'd also need to adjust pivot points or translation for proper "pinch to center" zoom.
+            return true; // Consume the scale event
+        }
+
+        @Override
+        public void onScaleEnd(ScaleGestureDetector detector) {
+            Log.d(TAG, "Gesture: Scale End. Final Zoom Factor: " + currentZoomFactor);
+            // Hide any zoom overlay here
+        }
+    }
+
+    // --- Gesture Handling Implementations ---
+
+    /**
+     * Handles horizontal swipe gestures for seeking the video.
+     * Updates the video player and shows a seek overlay.
+     * @param deltaX The change in X position from the initial touch point.
+     */
+    private void handleSeekGesture(float deltaX) {
+        long seekAmountMs = (long) (deltaX * SEEK_SENSITIVITY_MS_PER_PIXEL);
+        long newPosition = currentSeekPositionMs + seekAmountMs; // Relative to start of drag
+
+        // Clamp to video duration
+        long duration = videoPlayer.getDuration();
+        if (newPosition < 0) newPosition = 0;
+        if (newPosition > duration) newPosition = duration;
+
+        // Immediately seek for fluid responsiveness
+        videoPlayer.seekTo(newPosition);
+
+        // Update the seek overlay
+        showSeekOverlay(videoPlayer.getCurrentPosition(), newPosition, duration);
+    }
+
+    /**
+     * Handles vertical swipe gestures on the right half of the screen for volume control.
+     * Updates the system media volume and shows a volume overlay.
+     * @param deltaY The change in Y position from the initial touch point.
+     */
+    private void handleVolumeGesture(float deltaY) {
+        float volumeChange = -deltaY * VOLUME_BRIGHTNESS_SENSITIVITY_PERCENT_PER_PIXEL; // Negative deltaY for upward swipe (increase)
+        float newVolumeFloat = currentVolume + (volumeChange / 100f); // Convert percentage to 0.0-1.0 range
+
+        // Clamp new volume between 0.0 and 1.0
+        newVolumeFloat = Math.max(0f, Math.min(1f, newVolumeFloat));
+
+        // Update system volume
+        videoPlayer.setVolume(newVolumeFloat);
+        currentVolume = newVolumeFloat; // Update for next move event
+
+        // Show volume overlay
+        showVolumeOverlay(newVolumeFloat * 100); // Show as percentage
+    }
+
+    /**
+     * Handles vertical swipe gestures on the left half of the screen for brightness control.
+     * Updates the app's window brightness and shows a brightness overlay.
+     * @param deltaY The change in Y position from the initial touch point.
+     */
+    private void handleBrightnessGesture(float deltaY) {
+        if (window == null) {
+            Log.w(TAG, "Window not available for brightness control.");
+            return;
+        }
+
+        WindowManager.LayoutParams layoutParams = window.getAttributes();
+        float currentScreenBrightness = layoutParams.screenBrightness;
+
+        // If current brightness is system default (-1.0f), try to get actual system brightness.
+        // This ensures the gesture starts from the user's current brightness setting.
+        if (currentScreenBrightness == -1.0f) {
+            try {
+                currentScreenBrightness = Settings.System.getInt(
+                    getContext().getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS
+                ) / 255.0f; // System brightness is 0-255, convert to 0.0-1.0
+            } catch (Settings.SettingNotFoundException e) {
+                Log.e(TAG, "System brightness setting not found", e);
+                currentScreenBrightness = 0.5f; // Fallback to a mid-value
+            }
+        }
+
+        float brightnessChange = -deltaY * VOLUME_BRIGHTNESS_SENSITIVITY_PERCENT_PER_PIXEL;
+        float newBrightness = currentScreenBrightness + (brightnessChange / 100f);
+
+        // Clamp new brightness between a small non-zero value (to avoid screen turning off) and 1.0
+        newBrightness = Math.max(0.01f, Math.min(1.0f, newBrightness));
+
+        layoutParams.screenBrightness = newBrightness; // Set window brightness
+        window.setAttributes(layoutParams);
+        currentBrightness = newBrightness; // Update for next move event
+
+        // Show brightness overlay
+        showBrightnessOverlay(newBrightness * 100); // Show as percentage
+    }
+
+    /**
+     * Initiates a continuous seek operation on long press, with accelerating speed.
+     * @param initialX The X coordinate of the initial long press, used to determine seek direction.
+     */
+    private void startContinuousSeek(float initialX) {
+        final int direction = (initialX < getWidth() / 2) ? -1 : 1; // Left half: rewind, Right half: fast forward
+        isLongPressSeeking = true;
+
+        handler.removeCallbacks(continuousSeekRunnable); // Stop any previous continuous seek
+
+        continuousSeekRunnable = new Runnable() {
+            private long startTime = System.currentTimeMillis(); // Time when long press began
+
+            @Override
+            public void run() {
+                if (!isLongPressSeeking) { // Stop if gesture ended
+                    return;
+                }
+
+                long elapsedTimeMs = System.currentTimeMillis() - startTime;
+
+                // Accelerate seek speed based on elapsed time
+                // Example: speed doubles every LONG_PRESS_ACCELERATION_THRESHOLD_MS
+                double accelerationFactor = Math.pow(2, (double) elapsedTimeMs / LONG_PRESS_ACCELERATION_THRESHOLD_MS);
+                long actualSeekAmount = (long) (LONG_PRESS_SEEK_BASE_AMOUNT_MS * accelerationFactor * direction);
+
+                long newPosition = videoPlayer.getCurrentPosition() + actualSeekAmount;
+
+                // Clamp to video duration
+                long duration = videoPlayer.getDuration();
+                if (newPosition < 0) newPosition = 0;
+                if (newPosition > duration) newPosition = duration;
+
+                videoPlayer.seekTo(newPosition);
+                showSeekOverlay(videoPlayer.getCurrentPosition(), newPosition, duration); // Update overlay
+
+                handler.postDelayed(this, LONG_PRESS_SEEK_BASE_INTERVAL_MS); // Schedule next update
+            }
+        };
+        handler.post(continuousSeekRunnable); // Start the first update
+    }
+
+    // --- Overlay Management and Animations ---
+
+    private void showSeekOverlay(long currentMs, long targetMs, long totalDurationMs) {
+        seekOverlayText.setText(String.format(Locale.getDefault(), "%s << %s >> %s",
+            formatTime(currentMs), formatTime(targetMs), formatTime(totalDurationMs)));
+        animateOverlayVisibility(seekOverlayText, true, 0); // Show immediately
+        handler.removeCallbacks(hideSeekOverlayRunnable);
+        handler.postDelayed(hideSeekOverlayRunnable, 1500); // Hide after 1.5s
+    }
+
+    private void hideSeekOverlay() {
+        animateOverlayVisibility(seekOverlayText, false, 300); // Fade out over 300ms
+    }
+
+    private void showVolumeOverlay(float percentage) {
+        volumeOverlayText.setText(String.format(Locale.getDefault(), "Volume: %.0f%%", percentage));
+        animateOverlayVisibility(volumeOverlayText, true, 0);
+        handler.removeCallbacks(hideVolumeOverlayRunnable);
+        handler.postDelayed(hideVolumeOverlayRunnable, 1000); // Hide after 1s
+    }
+
+    private void hideVolumeOverlay() {
+        animateOverlayVisibility(volumeOverlayText, false, 300);
+    }
+
+    private void showBrightnessOverlay(float percentage) {
+        brightnessOverlayText.setText(String.format(Locale.getDefault(), "Brightness: %.0f%%", percentage));
+        animateOverlayVisibility(brightnessOverlayText, true, 0);
+        handler.removeCallbacks(hideBrightnessOverlayRunnable);
+        handler.postDelayed(hideBrightnessOverlayRunnable, 1000); // Hide after 1s
+    }
+
+    private void hideBrightnessOverlay() {
+        animateOverlayVisibility(brightnessOverlayText, false, 300);
+    }
+
+    private void showPlayPauseOverlay(boolean isPlaying) {
+        playPauseOverlayIcon.setImageResource(isPlaying ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause);
+        animateOverlayVisibility(playPauseOverlayIcon, true, 0);
+        handler.postDelayed(() -> animateOverlayVisibility(playPauseOverlayIcon, false, 500), 500); // Show for 0.5s, then fade out
+    }
+
+    /**
+     * Helper to animate overlay visibility.
+     * @param view The overlay view to animate.
+     * @param show True to show, false to hide.
+     * @param duration The duration of the fade animation in milliseconds.
+     */
+    private void animateOverlayVisibility(View view, boolean show, long duration) {
+        view.clearAnimation(); // Clear any previous animations
+        if (show) {
+            view.setAlpha(1f);
+            view.setVisibility(VISIBLE);
+        } else {
+            view.animate()
+                .alpha(0f)
+                .setDuration(duration)
+                .withEndAction(() -> view.setVisibility(GONE))
+                .start();
+        }
+    }
+
+
+    // --- Helper Utility Methods ---
+
+    /**
+     * Converts DP to Pixels.
+     * @param dp Value in DP.
+     * @return Value in pixels.
+     */
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    /**
+     * Formats milliseconds into a readable HH:MM:SS or MM:SS string.
+     */
+    private String formatTime(long ms) {
+        long totalSeconds = ms / 1000;
+        long seconds = totalSeconds % 60;
+        long minutes = (totalSeconds / 60) % 60;
+        long hours = totalSeconds / 3600;
+
+        if (hours > 0) {
+            return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds);
+        } else {
+            return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+        }
+    }
+
+    /**
+     * Gets the current system media volume as a float (0.0 to 1.0).
+     */
+    private float getSystemVolume() {
+        int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        return (float) currentVolume / maxVolume;
+    }
+
+    /**
+     * Gets the current screen brightness as a float (0.0 to 1.0).
+     * This reads the window's brightness first, then falls back to system settings if default.
+     */
+    private float getScreenBrightness() {
+        if (window == null) return 0.5f; // Default if window not available
+
+        WindowManager.LayoutParams layoutParams = window.getAttributes();
+        float brightness = layoutParams.screenBrightness;
+
+        if (brightness == -1.0f) { // -1.0 means system default, try to get actual system brightness
+            try {
+                // Ensure WRITE_SETTINGS permission is NOT required here, as we only read the current system value,
+                // and then write only to the app's window attributes.
+                return Settings.System.getInt(
+                    getContext().getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS
+                ) / 255.0f; // System brightness is 0-255, convert to 0.0-1.0
+            } catch (Settings.SettingNotFoundException e) {
+                Log.e(TAG, "System brightness setting not found", e);
+                return 0.5f; // Fallback
+            }
+        }
+        return brightness;
+    }
+}
+IV. Integration Instructions for Your AI Bot
+Here's how your AI bot would use and integrate this GestureVideoView into an Android application:
+
+1. Create Your Android Project:
+
+Start a new Android Studio project (e.g., "Empty Activity").
+
+Choose Java as the language.
+
+Target API 21 or higher (for VideoView speed control, API 23+ is needed).
+
+2. Add Permissions (if necessary):
+
+WRITE_SETTINGS is NOT needed for in-app brightness control via Window.getAttributes().screenBrightness. This is the recommended and permission-less approach for MX Player-like control.
+
+If, for some reason, you must change system-wide brightness, you would need:
+
+XML
+
+<uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+And then explicitly request it at runtime. But, again, avoid this for this use case.
+
+No special permissions are typically needed for AudioManager if you're adjusting STREAM_MUSIC.
+
+3. Define the VideoPlayerInterface and its Implementations:
+
+Copy the VideoPlayerInterface interface provided above.
+
+Copy either the AndroidVideoPlayerWrapper (if using VideoView) or the ExoPlayerWrapper (if using ExoPlayer) into your project. If using ExoPlayer, ensure you add the ExoPlayer dependency to your build.gradle file.
+
+Gradle
+
+// For ExoPlayer
+implementation 'com.google.android.exoplayer:exoplayer:2.X.X' // Use the latest stable version
+implementation 'com.google.android.exoplayer:exoplayer-ui:2.X.X'
+4. Create the GestureVideoView Class:
+
+Copy the entire GestureVideoView class provided above into your project.
+
+Ensure Log imports are correct (android.util.Log).
+
+Make sure resource IDs for play/pause icons are available (android.R.drawable.ic_media_play, android.R.drawable.ic_media_pause).
+
+5. Design Your Layout (activity_main.xml):
+
+In your activity_main.xml (or whichever layout file hosts your video player), replace your existing VideoView or PlayerView with the GestureVideoView. It will internally manage the actual player.
+
+XML
+
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    tools:context=".MainActivity">
+
+    <com.your.package.name.GestureVideoView
+        android:id="@+id/gestureVideoView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_centerInParent="true" />
+
+    </RelativeLayout>
+Important: Replace com.your.package.name with your actual application's package name where GestureVideoView.java resides.
+
+6. Initialize in Your Activity (e.g., MainActivity.java):
+
+Get a reference to your GestureVideoView in onCreate.
+
+Access its VideoPlayerInterface to load and start your video.
+
+Java
+
+package com.your.package.name; // Your actual package name
+
+import android.net.Uri;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    private GestureVideoView gestureVideoView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // Ensure the activity has a fullscreen theme if you want a true MX Player experience
+        // getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+        //                      WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        setContentView(R.layout.activity_main);
+
+        gestureVideoView = findViewById(R.id.gestureVideoView);
+
+        // Now, load your video using the wrapper
+        // If using AndroidVideoPlayerWrapper:
+        VideoView actualVideoView = ((AndroidVideoPlayerWrapper) gestureVideoView.getVideoPlayer()).getActualVideoView();
+        // Example: load a video from raw resources
+        actualVideoView.setVideoURI(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.sample_video));
+        actualVideoView.start(); // Start playback
+
+        /*
+        // If using ExoPlayerWrapper (ensure ExoPlayer and PlayerView are initialized within it):
+        PlayerView actualPlayerView = ((ExoPlayerWrapper) gestureVideoView.getVideoPlayer()).getActualPlayerView();
+        // You would have initialized and set the ExoPlayer instance on actualPlayerView before this point
+        // Example:
+        // ExoPlayer player = new ExoPlayer.Builder(this).build();
+        // actualPlayerView.setPlayer(player);
+        // MediaItem mediaItem = MediaItem.fromUri("asset:///your_video.mp4");
+        // player.setMediaItem(mediaItem);
+        // player.prepare();
+        // player.play();
+        */
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (gestureVideoView != null && gestureVideoView.getVideoPlayer() != null) {
+            gestureVideoView.getVideoPlayer().pause();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (gestureVideoView != null && gestureVideoView.getVideoPlayer() != null) {
+            // Resume playback if it was paused by the user or system,
+            // but avoid auto-playing if it was explicitly paused.
+            // You'd need more sophisticated state management for this.
+            // For now, it will simply resume.
+            gestureVideoView.getVideoPlayer().play();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Release player resources here if your wrapper doesn't handle it
+        // For VideoView, nothing specific needed unless you manually manage MediaPlayer.
+        // For ExoPlayer, call player.release();
+    }
+}
+Remember to add a sample video to res/raw/sample_video.mp4 (or whatever format you use).
+
+This comprehensive setup provides the foundation for a highly fluid and intuitive video player experience, mirroring the well-regarded gestures of MX Player. Your AI bot now has a detailed roadmap to implement these features.

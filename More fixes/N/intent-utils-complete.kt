@@ -284,6 +284,4 @@ object IntentUtils {
             }
         }
     }
-    
-
 }

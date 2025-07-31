@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Astral-Vu/Mx player"
+		},
+		{
+			"path": "../Astral-Vu/Next player"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}

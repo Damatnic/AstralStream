@@ -1,12 +1,12 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'
+    id 'dagger.hilt.android.plugin'
     id 'kotlin-parcelize'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.24'
-    id 'kotlin-kapt'
-    id 'com.google.dagger.hilt.android'
-    id 'com.google.gms.google-services'
-    id 'com.google.firebase.crashlytics'
+    // id 'com.google.gms.google-services'
+    // id 'com.google.firebase.crashlytics'
 }
 
 android {
@@ -43,7 +43,10 @@ android {
     kotlinOptions {
         jvmTarget = '17'
         freeCompilerArgs += [
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+            '-opt-in=kotlin.RequiresOptIn',
+            '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
+            '-opt-in=androidx.compose.material3.ExperimentalMaterial3Api',
+            '-opt-in=androidx.compose.animation.ExperimentalAnimationApi'
         ]
     }
     
@@ -63,9 +66,9 @@ android {
         buildConfig = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = '1.5.14'
+        kotlinCompilerExtensionVersion = '1.5.7'
     }
-    packaging {
+    packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
@@ -217,10 +220,11 @@ dependencies {
     // Coil for image loading
     implementation 'io.coil-kt:coil-compose:2.6.0'
     
-    // Firebase
-    implementation platform('com.google.firebase:firebase-bom:34.0.0')
-    implementation 'com.google.firebase:firebase-analytics-ktx'
-    implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    // Firebase - Temporarily disabled for build testing
+    // implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    // implementation 'com.google.firebase:firebase-analytics-ktx'
+    // implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    // implementation 'com.google.firebase:firebase-config-ktx'
     // Note: Firebase Auth and Firestore are not needed for current features
     // Uncomment if you want user authentication or cloud database:
     // implementation 'com.google.firebase:firebase-auth-ktx'

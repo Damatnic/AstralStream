@@ -1,3 +1,4 @@
+// Theme.kt
 package com.astralplayer.nextplayer.ui.theme
 
 import android.app.Activity
@@ -71,9 +72,55 @@ fun AstralPlayerTheme(
     )
 }
 
-// Alias for compatibility with different naming conventions
-@Composable
-fun AstralTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) = AstralPlayerTheme(darkTheme, content)
+// Color.kt
+package com.astralplayer.nextplayer.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+
+// Additional colors for video player
+val VideoPlayerBackground = Color(0xFF000000)
+val VideoPlayerOverlay = Color(0x80000000)
+val VideoPlayerAccent = Color(0xFF6200EA)
+val VideoPlayerSecondary = Color(0xFF03DAC6)
+
+// Type.kt
+package com.astralplayer.nextplayer.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+// Set of Material typography styles to start with
+val Typography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+)
