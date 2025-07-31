@@ -1,6 +1,7 @@
 package com.astralplayer.astralstream
 
 import android.content.pm.ActivityInfo
+import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -15,18 +16,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.source.SingleSampleMediaSource
+import androidx.media3.datasource.DefaultDataSource
 import com.astralplayer.astralstream.ui.components.VideoPlayer
 import com.astralplayer.astralstream.ui.theme.AstralStreamTheme
 import com.astralplayer.astralstream.viewmodel.VideoPlayerViewModel
-import dagger.hilt.android.AndroidEntryPoint
+import com.astralplayer.astralstream.ai.AISubtitleGenerator
+// import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
+import java.io.File
+// import javax.inject.Inject
 
-@AndroidEntryPoint
+// @AndroidEntryPoint
 class VideoPlayerActivity : ComponentActivity() {
     
     private val videoPlayerViewModel: VideoPlayerViewModel by viewModels()
     private var exoPlayer: ExoPlayer? = null
+    
+    // @Inject
+    // lateinit var aiSubtitleGenerator: AISubtitleGenerator
+    private val aiSubtitleGenerator by lazy { AISubtitleGenerator(this) }
     
     companion object {
         const val EXTRA_VIDEO_URL = "video_url"
@@ -59,6 +75,8 @@ class VideoPlayerActivity : ComponentActivity() {
                     when (playbackState) {
                         Player.STATE_READY -> {
                             videoPlayerViewModel.onVideoReady(duration)
+                            // Start AI subtitle generation when video is ready
+                            startAISubtitleGeneration(videoUrl)
                         }
                         Player.STATE_ENDED -> {
                             videoPlayerViewModel.onVideoEnded()
@@ -176,5 +194,90 @@ class VideoPlayerActivity : ComponentActivity() {
         super.onDestroy()
         exoPlayer?.release()
         exoPlayer = null
+        aiSubtitleGenerator.release()
+    }
+    
+    private fun startAISubtitleGeneration(videoUrl: String) {
+        lifecycleScope.launch {
+            try {
+                val videoUri = Uri.parse(videoUrl)
+                aiSubtitleGenerator.generate(videoUri) { subtitles ->
+                    // Apply subtitles to player when generated
+                    applySubtitlesToPlayer(subtitles)
+                }
+            } catch (e: Exception) {
+                // Handle error silently - subtitles are optional
+            }
+        }
+    }
+    
+    private fun applySubtitlesToPlayer(subtitles: List<AISubtitleGenerator.Subtitle>) {
+        exoPlayer?.let { player ->
+            try {
+                // Create SRT subtitle file
+                val subtitleContent = createSRTContent(subtitles)
+                val subtitleFile = File(cacheDir, "ai_subtitles_${System.currentTimeMillis()}.srt")
+                subtitleFile.writeText(subtitleContent)
+                
+                // Create subtitle media source
+                val subtitleUri = Uri.fromFile(subtitleFile)
+                val dataSourceFactory = DefaultDataSource.Factory(this)
+                
+                val subtitleSource = SingleSampleMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(
+                        MediaItem.SubtitleConfiguration.Builder(subtitleUri)
+                            .setMimeType(MimeTypes.APPLICATION_SUBRIP)
+                            .setLanguage("en")
+                            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                            .build(),
+                        C.TIME_UNSET
+                    )
+                
+                // Get current media item and create merged source
+                player.currentMediaItem?.let { mediaItem ->
+                    val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(mediaItem)
+                    
+                    val mergedSource = MergingMediaSource(videoSource, subtitleSource)
+                    
+                    // Save current position
+                    val currentPosition = player.currentPosition
+                    val wasPlaying = player.isPlaying
+                    
+                    // Set new media source with subtitles
+                    player.setMediaSource(mergedSource)
+                    player.prepare()
+                    player.seekTo(currentPosition)
+                    player.playWhenReady = wasPlaying
+                }
+                
+            } catch (e: Exception) {
+                // Handle error silently - subtitles are optional
+            }
+        }
+    }
+    
+    private fun createSRTContent(subtitles: List<AISubtitleGenerator.Subtitle>): String {
+        val builder = StringBuilder()
+        subtitles.forEachIndexed { index, subtitle ->
+            builder.append("${index + 1}\n")
+            builder.append("${formatTime(subtitle.startTime)} --> ${formatTime(subtitle.endTime)}\n")
+            builder.append("${subtitle.translatedText ?: subtitle.text}\n\n")
+        }
+        return builder.toString()
+    }
+    
+    private fun formatTime(millis: Long): String {
+        val seconds = millis / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        
+        return String.format(
+            "%02d:%02d:%02d,%03d",
+            hours,
+            minutes % 60,
+            seconds % 60,
+            millis % 1000
+        )
     }
 }

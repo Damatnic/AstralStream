@@ -2,6 +2,10 @@ package com.astralplayer.astralstream.ai
 
 import android.content.Context
 import android.net.Uri
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaCodec
+import java.nio.ByteBuffer
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
@@ -9,14 +13,21 @@ import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.content
+import com.astralplayer.astralstream.BuildConfig
+import java.io.File
+import java.io.FileOutputStream
+import android.util.Base64
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import javax.inject.Inject
-import javax.inject.Singleton
+// import javax.inject.Inject
+// import javax.inject.Singleton
+import java.io.IOException
 
-@Singleton
-class AISubtitleGenerator @Inject constructor(
+// @Singleton
+class AISubtitleGenerator /* @Inject constructor */ (
     private val context: Context
 ) {
     
@@ -46,6 +57,7 @@ class AISubtitleGenerator @Inject constructor(
     
     private var textRecognizer: TextRecognizer? = null
     private var translator: Translator? = null
+    private var generativeModel: GenerativeModel? = null
     private val generationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     init {
@@ -62,6 +74,14 @@ class AISubtitleGenerator @Inject constructor(
             .setTargetLanguage(TranslateLanguage.SPANISH) // Default, can be changed
             .build()
         translator = Translation.getClient(options)
+        
+        // Initialize Google AI Gemini for speech recognition
+        if (BuildConfig.GOOGLE_AI_API_KEY.isNotEmpty()) {
+            generativeModel = GenerativeModel(
+                modelName = "gemini-pro",
+                apiKey = BuildConfig.GOOGLE_AI_API_KEY
+            )
+        }
         
         // Download models if needed
         downloadModelsIfNeeded()
@@ -166,10 +186,76 @@ class AISubtitleGenerator @Inject constructor(
         return segments
     }
     
-    private fun processAudioSegment(segment: AudioSegment): String {
-        // Placeholder for actual speech recognition
-        // In a real implementation, this would use ML Kit or cloud speech API
-        return "Generated subtitle for segment ${segment.startTime}-${segment.endTime}"
+    private suspend fun processAudioSegment(segment: AudioSegment): String = withContext(Dispatchers.IO) {
+        try {
+            generativeModel?.let { model ->
+                // Convert audio data to base64 for AI processing
+                val audioBase64 = Base64.encodeToString(segment.data, Base64.DEFAULT)
+                
+                // Create a prompt for audio transcription
+                val prompt = """
+                    Analyze this audio segment and transcribe the speech to text.
+                    Audio duration: ${segment.endTime - segment.startTime}ms
+                    Please provide only the transcribed text, no additional formatting or explanations.
+                    If no speech is detected, return an empty string.
+                    
+                    Audio data (base64): $audioBase64
+                """.trimIndent()
+                
+                val response = model.generateContent(content {
+                    text(prompt)
+                })
+                
+                return@withContext response.text?.trim() ?: ""
+            }
+            
+            // Fallback: Use simple heuristics if no AI model available
+            return@withContext generateFallbackSubtitle(segment)
+            
+        } catch (e: Exception) {
+            // Return empty string on error to avoid breaking the flow
+            return@withContext ""
+        }
+    }
+    
+    private fun generateFallbackSubtitle(segment: AudioSegment): String {
+        // Simple fallback when AI is not available
+        // This could be enhanced with basic audio analysis
+        val duration = segment.endTime - segment.startTime
+        
+        return when {
+            duration < 1000 -> "" // Very short segments likely have no speech
+            segment.data.isEmpty() -> ""
+            else -> {
+                // Analyze basic audio properties
+                val hasSignificantAudio = analyzeAudioLevel(segment.data)
+                if (hasSignificantAudio) {
+                    "Audio detected (${duration / 1000}s)" // Placeholder text
+                } else {
+                    ""
+                }
+            }
+        }
+    }
+    
+    private fun analyzeAudioLevel(audioData: ByteArray): Boolean {
+        // Basic audio level analysis
+        if (audioData.isEmpty()) return false
+        
+        var totalAmplitude = 0L
+        var samples = 0
+        
+        // Sample every 100th byte to check for significant audio
+        for (i in audioData.indices step 100) {
+            val sample = audioData[i].toInt()
+            totalAmplitude += kotlin.math.abs(sample)
+            samples++
+        }
+        
+        val averageAmplitude = if (samples > 0) totalAmplitude / samples else 0
+        
+        // Return true if there's significant audio activity
+        return averageAmplitude > 10 // Threshold for detecting speech
     }
     
     private suspend fun postProcessSubtitles(subtitles: List<Subtitle>): List<Subtitle> = withContext(Dispatchers.Default) {
@@ -284,6 +370,7 @@ class AISubtitleGenerator @Inject constructor(
         generationScope.cancel()
         textRecognizer?.close()
         translator?.close()
+        generativeModel = null
         _currentSubtitles.value = emptyList()
     }
     
@@ -300,9 +387,74 @@ class AISubtitleGenerator @Inject constructor(
     
     private class AudioExtractor(private val context: Context) {
         suspend fun extractAudio(videoUri: Uri): ByteArray = withContext(Dispatchers.IO) {
-            // Placeholder for audio extraction
-            // In a real implementation, this would use MediaExtractor
-            ByteArray(0)
+            val extractor = MediaExtractor()
+            val audioSamples = mutableListOf<Byte>()
+            
+            try {
+                // Set data source based on URI scheme
+                when (videoUri.scheme) {
+                    "content" -> {
+                        context.contentResolver.openFileDescriptor(videoUri, "r")?.use { pfd ->
+                            extractor.setDataSource(pfd.fileDescriptor)
+                        } ?: throw IOException("Could not open content URI: $videoUri")
+                    }
+                    "file" -> {
+                        extractor.setDataSource(videoUri.path ?: throw IOException("Invalid file path"))
+                    }
+                    "http", "https" -> {
+                        extractor.setDataSource(context, videoUri, null)
+                    }
+                    else -> throw IOException("Unsupported URI scheme: ${videoUri.scheme}")
+                }
+                
+                // Find audio track
+                var audioTrackIndex = -1
+                for (i in 0 until extractor.trackCount) {
+                    val format = extractor.getTrackFormat(i)
+                    val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                    
+                    if (mime.startsWith("audio/")) {
+                        audioTrackIndex = i
+                        extractor.selectTrack(i)
+                        break
+                    }
+                }
+                
+                if (audioTrackIndex == -1) {
+                    throw IOException("No audio track found in video")
+                }
+                
+                // Extract audio samples
+                val buffer = ByteBuffer.allocate(1024 * 1024) // 1MB buffer
+                val info = MediaCodec.BufferInfo()
+                var totalSamples = 0
+                val maxSamples = 50 * 1024 * 1024 // Limit to 50MB to prevent memory issues
+                
+                while (totalSamples < maxSamples) {
+                    val sampleSize = extractor.readSampleData(buffer, 0)
+                    if (sampleSize < 0) break
+                    
+                    // Read sample data
+                    val sampleData = ByteArray(sampleSize)
+                    buffer.get(sampleData)
+                    audioSamples.addAll(sampleData.toList())
+                    totalSamples += sampleSize
+                    
+                    buffer.clear()
+                    if (!extractor.advance()) break
+                }
+                
+                audioSamples.toByteArray()
+                
+            } catch (e: Exception) {
+                throw IOException("Failed to extract audio: ${e.message}", e)
+            } finally {
+                try {
+                    extractor.release()
+                } catch (e: Exception) {
+                    // Ignore release errors
+                }
+            }
         }
     }
 }
