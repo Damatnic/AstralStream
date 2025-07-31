@@ -29,7 +29,7 @@
         android:required="false" />
 
     <application
-        android:name=".AstralStreamApplication"
+        android:name="com.astralplayer.stream.app.AstralStreamApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"

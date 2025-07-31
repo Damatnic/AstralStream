@@ -1,8 +1,8 @@
-# AstralStream 
+# AstralStream - Professional Video Player
 
-**Next-Generation Video Player with Advanced MX Player-Style Gesture Controls**
+**Elite Android Video Player with Universal Compatibility & Browser Integration**
 
-AstralStream is a powerful Android video player that combines the familiar functionality of MX Player with modern enhancements and advanced gesture controls. Built with Kotlin and Jetpack Compose, it offers a seamless and intuitive video playback experience.
+AstralStream is a professional Android video player designed for maximum compatibility and seamless integration. Built with modern architecture and optimized for all content types including adult content and professional streaming.
 
 ## 🚀 Key Features
 
