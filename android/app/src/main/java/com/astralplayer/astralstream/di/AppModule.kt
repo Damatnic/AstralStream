@@ -57,4 +57,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSubtitleDao(database: AstralStreamDatabase) = database.subtitleDao()
+    
+    @Provides
+    @Singleton
+    fun provideSettingsDao(database: AstralStreamDatabase) = database.settingsDao()
+    
+    @Provides
+    @Singleton
+    fun providePlaybackStateDao(database: AstralStreamDatabase) = database.playbackStateDao()
 }
