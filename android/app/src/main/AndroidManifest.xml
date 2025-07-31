@@ -29,7 +29,7 @@
         android:required="false" />
 
     <application
-        android:name="com.astralplayer.AstralPlayerApplication"
+        android:name=".AstralPlayerApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -45,7 +45,7 @@
         
         <!-- Main Activity -->
         <activity
-            android:name=".MainActivity"
+            android:name="com.astralplayer.astralstream.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.AstralStream">
             <intent-filter>

@@ -10,11 +10,11 @@ plugins {
 }
 
 android {
-    namespace = 'com.astralplayer.stream'
+    namespace = 'com.astralplayer'
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.astralplayer.stream"
+        applicationId = "com.astralplayer"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
