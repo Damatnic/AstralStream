@@ -41,35 +41,54 @@ fun VideoPlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
         
-        // Subtitle generation progress indicator
+        // Enhanced subtitle generation progress indicator
         if (subtitleState.isGenerating) {
             Card(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.Black.copy(alpha = 0.7f)
+                    containerColor = Color.Black.copy(alpha = 0.8f)
                 )
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Service indicator
+                    subtitleState.aiService?.let { service ->
+                        Text(
+                            text = if (subtitleState.fallbackActive) "Fallback Mode" else service.uppercase(),
+                            color = if (subtitleState.fallbackActive) Color.Yellow else Color.Green,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    
                     Text(
-                        text = "Generating Subtitles...",
+                        text = if (subtitleState.fallbackActive) "Generating Basic Subtitles..." else "AI Generating Subtitles...",
                         color = Color.White,
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     LinearProgressIndicator(
                         progress = subtitleState.progress,
-                        modifier = Modifier.width(100.dp)
+                        modifier = Modifier.width(120.dp),
+                        color = if (subtitleState.fallbackActive) Color.Yellow else Color.Green
                     )
                     Text(
                         text = "${(subtitleState.progress * 100).toInt()}%",
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall
                     )
+                    
+                    // Cost estimate
+                    subtitleState.costEstimate?.let { cost ->
+                        Text(
+                            text = "Est. cost: $cost",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
         }

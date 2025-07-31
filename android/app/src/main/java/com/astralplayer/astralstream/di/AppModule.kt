@@ -9,7 +9,10 @@ import com.astralplayer.astralstream.data.repository.SettingsRepositoryImpl
 import com.astralplayer.core.intent.VideoIntentHandler
 import com.astralplayer.core.extractor.StreamExtractor
 import com.astralplayer.core.codec.CodecOptimizer
+import com.astralplayer.core.config.ApiKeyManager
+import com.astralplayer.core.audio.AudioExtractorEngine
 import com.astralplayer.features.ai.EnhancedAISubtitleGenerator
+import com.astralplayer.features.ai.SubtitleFallbackEngine
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -136,9 +139,36 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideEnhancedAISubtitleGenerator(
+    fun provideApiKeyManager(
         @ApplicationContext context: Context
+    ): ApiKeyManager {
+        return ApiKeyManager(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideAudioExtractorEngine(
+        @ApplicationContext context: Context
+    ): AudioExtractorEngine {
+        return AudioExtractorEngine(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSubtitleFallbackEngine(
+        @ApplicationContext context: Context
+    ): SubtitleFallbackEngine {
+        return SubtitleFallbackEngine(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideEnhancedAISubtitleGenerator(
+        @ApplicationContext context: Context,
+        apiKeyManager: ApiKeyManager,
+        audioExtractor: AudioExtractorEngine,
+        fallbackEngine: SubtitleFallbackEngine
     ): EnhancedAISubtitleGenerator {
-        return EnhancedAISubtitleGenerator(context, "")
+        return EnhancedAISubtitleGenerator(context, apiKeyManager, audioExtractor, fallbackEngine)
     }
 }
