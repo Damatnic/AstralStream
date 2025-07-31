@@ -64,13 +64,15 @@
             android:supportsPictureInPicture="true"
             android:resizeableActivity="true">
             
-            <!-- CRITICAL: Priority 999 for all intent filters -->
+            <!-- CRITICAL: Maximum Priority for all intent filters -->
             
             <!-- Direct video URLs with extensions -->
-            <intent-filter android:priority="999">
+            <intent-filter android:priority="999" android:order="1">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+                <category android:name="android.intent.category.VOICE" />
                 
                 <data android:scheme="http" />
                 <data android:scheme="https" />
@@ -95,10 +97,11 @@
             </intent-filter>
             
             <!-- Streaming manifests -->
-            <intent-filter android:priority="999">
+            <intent-filter android:priority="999" android:order="2">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
                 
                 <data android:scheme="http" />
                 <data android:scheme="https" />
@@ -111,11 +114,12 @@
                 <data android:pathPattern=".*manifest.*" />
             </intent-filter>
             
-            <!-- MIME types -->
-            <intent-filter android:priority="999">
+            <!-- MIME types - MOST IMPORTANT for browser recognition -->
+            <intent-filter android:priority="999" android:order="3">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
                 
                 <data android:scheme="http" />
                 <data android:scheme="https" />
@@ -128,10 +132,35 @@
                 <data android:mimeType="application/dash+xml" />
                 <data android:mimeType="application/mp4" />
                 <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            
+            <!-- Catch-all for any video URL -->
+            <intent-filter android:priority="999" android:order="4">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+                
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="*" />
+                
+                <!-- Aggressive pattern matching -->
+                <data android:pathPattern=".*video.*" />
+                <data android:pathPattern=".*stream.*" />
+                <data android:pathPattern=".*media.*" />
+                <data android:pathPattern=".*watch.*" />
+                <data android:pathPattern=".*play.*" />
+                <data android:pathPattern=".*embed.*" />
+                <data android:pathPattern=".*player.*" />
+                <data android:pathPattern=".*content.*" />
+                <data android:pathPattern=".*file.*" />
+                <data android:pathPattern=".*blob.*" />
             </intent-filter>
             
             <!-- Streaming protocols -->
-            <intent-filter android:priority="999">
+            <intent-filter android:priority="999" android:order="5">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -142,20 +171,37 @@
                 <data android:scheme="rtp" />
             </intent-filter>
             
-            <!-- Share intent -->
-            <intent-filter>
+            <!-- Share intent with maximum priority -->
+            <intent-filter android:priority="999">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
                 <data android:mimeType="video/*" />
+                <data android:mimeType="*/*" />
             </intent-filter>
             
             <!-- Content provider -->
-            <intent-filter android:priority="999">
+            <intent-filter android:priority="999" android:order="6">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:mimeType="video/*" />
+            </intent-filter>
+            
+            <!-- Process text (for URL sharing from browsers) -->
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            
+            <!-- Browser activity launch -->
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.APP_BROWSER" />
             </intent-filter>
         </activity>
         

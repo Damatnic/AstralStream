@@ -11,6 +11,8 @@ import com.astralplayer.core.extractor.StreamExtractor
 import com.astralplayer.core.codec.CodecOptimizer
 import com.astralplayer.core.config.ApiKeyManager
 import com.astralplayer.core.audio.AudioExtractorEngine
+import com.astralplayer.core.browser.BrowserIntentHandler
+import com.astralplayer.core.system.DefaultPlayerManager
 import com.astralplayer.features.ai.EnhancedAISubtitleGenerator
 import com.astralplayer.features.ai.SubtitleFallbackEngine
 import dagger.Module
@@ -159,6 +161,20 @@ object AppModule {
         @ApplicationContext context: Context
     ): SubtitleFallbackEngine {
         return SubtitleFallbackEngine(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideBrowserIntentHandler(): BrowserIntentHandler {
+        return BrowserIntentHandler()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideDefaultPlayerManager(
+        @ApplicationContext context: Context
+    ): DefaultPlayerManager {
+        return DefaultPlayerManager(context)
     }
     
     @Provides

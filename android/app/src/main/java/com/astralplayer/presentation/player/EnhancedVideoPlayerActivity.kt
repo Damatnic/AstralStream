@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.astralplayer.core.intent.VideoIntentHandler
 import com.astralplayer.core.extractor.StreamExtractor
+import com.astralplayer.core.browser.BrowserIntentHandler
+import com.astralplayer.core.system.DefaultPlayerManager
 import com.astralplayer.features.ai.EnhancedAISubtitleGenerator
 import timber.log.Timber
 
@@ -29,6 +31,8 @@ class EnhancedVideoPlayerActivity : ComponentActivity() {
     
     @Inject lateinit var intentHandler: VideoIntentHandler
     @Inject lateinit var streamExtractor: StreamExtractor
+    @Inject lateinit var browserHandler: BrowserIntentHandler
+    @Inject lateinit var defaultPlayerManager: DefaultPlayerManager
     @Inject lateinit var subtitleGenerator: EnhancedAISubtitleGenerator
     
     private lateinit var player: ExoPlayer
@@ -37,10 +41,13 @@ class EnhancedVideoPlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Check if we should be the default video player
+        checkDefaultPlayerStatus()
+        
         // Initialize player with subtitle support
         initializePlayer()
         
-        // Handle intent
+        // Handle intent with browser-specific processing
         handleIntent(intent)
         
         setContent {
@@ -80,10 +87,35 @@ class EnhancedVideoPlayerActivity : ComponentActivity() {
         })
     }
     
+    private fun checkDefaultPlayerStatus() {
+        if (!defaultPlayerManager.isDefaultVideoPlayer()) {
+            Timber.d("App is not the default video player")
+            // Could show a prompt to set as default, but for now just log
+        }
+        
+        // Check compatibility
+        val compatibility = defaultPlayerManager.checkVideoAppCompatibility()
+        Timber.d("Video app compatibility score: ${compatibility.getCompatibilityScore()}")
+        
+        if (compatibility.getCompatibilityScore() < 0.8f) {
+            Timber.w("Low compatibility score, recommendations: ${compatibility.getRecommendations()}")
+        }
+    }
+    
     private fun handleIntent(intent: android.content.Intent) {
         lifecycleScope.launch {
             try {
-                // Parse intent
+                // First, extract browser-specific data
+                val browserData = browserHandler.extractBrowserData(intent)
+                Timber.d("Browser data extracted: ${browserData.sourceApp} - ${browserData.originalUrl}")
+                
+                // Check if this is a video URL
+                if (!browserData.isVideoUrl && !browserHandler.isVideoUrl(browserData.originalUrl)) {
+                    Timber.w("URL may not be a video: ${browserData.originalUrl}")
+                    // Continue anyway, might be an embedded video
+                }
+                
+                // Parse intent with enhanced video detection
                 val videoInfo = intentHandler.extractVideoInfo(intent)
                 Timber.d("Video info extracted: $videoInfo")
                 
