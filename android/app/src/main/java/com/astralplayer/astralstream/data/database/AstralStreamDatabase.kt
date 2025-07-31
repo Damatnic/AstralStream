@@ -11,17 +11,20 @@ import com.astralplayer.astralstream.data.entity.VideoEntity
 import com.astralplayer.astralstream.data.entity.PlaylistEntity
 import com.astralplayer.astralstream.data.entity.PlaybackStateEntity
 import com.astralplayer.astralstream.data.entity.SettingsEntity
+import com.astralplayer.astralstream.data.entity.SubtitleEntity
 import com.astralplayer.astralstream.data.dao.VideoDao
 import com.astralplayer.astralstream.data.dao.PlaylistDao
 import com.astralplayer.astralstream.data.dao.PlaybackStateDao
 import com.astralplayer.astralstream.data.dao.SettingsDao
+import com.astralplayer.astralstream.data.dao.SubtitleDao
 
 @Database(
     entities = [
         VideoEntity::class,
         PlaylistEntity::class,
         PlaybackStateEntity::class,
-        SettingsEntity::class
+        SettingsEntity::class,
+        SubtitleEntity::class
     ],
     version = 1,
     exportSchema = false
@@ -33,6 +36,7 @@ abstract class AstralStreamDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
     abstract fun playbackStateDao(): PlaybackStateDao
     abstract fun settingsDao(): SettingsDao
+    abstract fun subtitleDao(): SubtitleDao
     
     companion object {
         @Volatile

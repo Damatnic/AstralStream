@@ -65,4 +65,34 @@ object AppModule {
     @Provides
     @Singleton
     fun providePlaybackStateDao(database: AstralStreamDatabase) = database.playbackStateDao()
+    
+    @Provides
+    @Singleton
+    fun provideAISubtitleGenerator(
+        @ApplicationContext context: Context
+    ): com.astralplayer.astralstream.ai.AISubtitleGenerator {
+        return com.astralplayer.astralstream.ai.AISubtitleGenerator(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideCloudStorageManager(
+        @ApplicationContext context: Context
+    ): com.astralplayer.astralstream.cloud.CloudStorageManager {
+        return com.astralplayer.astralstream.cloud.CloudStorageManager(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideAdvancedPlayerConfiguration(
+        @ApplicationContext context: Context,
+        database: AstralStreamDatabase,
+        settingsRepository: SettingsRepository
+    ): com.astralplayer.astralstream.player.AdvancedPlayerConfiguration {
+        return com.astralplayer.astralstream.player.AdvancedPlayerConfiguration(
+            context,
+            database,
+            settingsRepository
+        )
+    }
 }
