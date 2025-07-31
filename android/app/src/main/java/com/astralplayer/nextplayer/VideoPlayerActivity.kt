@@ -29,12 +29,21 @@ import com.astralplayer.nextplayer.di.PlayerModule
 import com.astralplayer.nextplayer.data.EnhancedGestureManager
 import com.astralplayer.nextplayer.data.HapticFeedbackManager
 import com.astralplayer.nextplayer.data.gesture.GestureSettingsSerializer
+import com.astralplayer.nextplayer.gesture.AdvancedGestureManager
+import com.astralplayer.nextplayer.enhancement.SmartVideoEnhancementEngine
+import com.astralplayer.nextplayer.performance.PerformanceMonitor
+import com.astralplayer.nextplayer.performance.BatteryOptimizer
+import com.astralplayer.nextplayer.audio.AudioPresetManager
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import com.astralplayer.nextplayer.ui.theme.AstralPlayerTheme
 import com.astralplayer.nextplayer.ui.screens.SimpleVideoPlayerWithGestures
+import com.astralplayer.nextplayer.ui.screens.AdvancedGestureVideoPlayerScreen
 import com.astralplayer.nextplayer.utils.CodecManager
 import com.astralplayer.nextplayer.utils.IntentUtils
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 @UnstableApi
 open class VideoPlayerActivity : ComponentActivity() {
     
@@ -49,6 +58,21 @@ open class VideoPlayerActivity : ComponentActivity() {
     protected lateinit var gestureManager: EnhancedGestureManager
     protected lateinit var hapticManager: HapticFeedbackManager
     protected lateinit var settingsSerializer: GestureSettingsSerializer
+    
+    @Inject
+    lateinit var advancedGestureManager: AdvancedGestureManager
+    
+    @Inject
+    lateinit var enhancementEngine: SmartVideoEnhancementEngine
+    
+    @Inject
+    lateinit var performanceMonitor: PerformanceMonitor
+    
+    @Inject
+    lateinit var batteryOptimizer: BatteryOptimizer
+    
+    @Inject
+    lateinit var audioPresetManager: AudioPresetManager
     
     private var videoUri: Uri? = null
     private var videoTitle: String? = null
@@ -69,6 +93,14 @@ open class VideoPlayerActivity : ComponentActivity() {
         // Initialize core components
         initializePlayer()
         
+        // Initialize Week1 features
+        performanceMonitor.trackFrameMetrics(this)
+        batteryOptimizer.registerPowerModeCallback { mode ->
+            // Adjust video quality based on power mode
+            val quality = batteryOptimizer.getOptimalVideoQuality()
+            Log.d(TAG, "Power mode changed: $mode, optimal quality: $quality")
+        }
+        
         // Handle intent
         handleIntent(intent)
         
@@ -79,10 +111,20 @@ open class VideoPlayerActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     videoUri?.let { uri ->
-                        SimpleVideoPlayerWithGestures(
-                            playerView = playerView,
-                            onBack = { finish() }
-                        )
+                        // Use advanced gesture video player if initialized
+                        if (::advancedGestureManager.isInitialized) {
+                            AdvancedGestureVideoPlayerScreen(
+                                playerView = playerView,
+                                advancedGestureManager = advancedGestureManager,
+                                onBack = { finish() }
+                            )
+                        } else {
+                            // Fallback to simple player
+                            SimpleVideoPlayerWithGestures(
+                                playerView = playerView,
+                                onBack = { finish() }
+                            )
+                        }
                     }
                 }
             }
@@ -104,6 +146,16 @@ open class VideoPlayerActivity : ComponentActivity() {
             gestureManager = EnhancedGestureManager()
             hapticManager = HapticFeedbackManager(this)
             settingsSerializer = GestureSettingsSerializer(this)
+            
+            // Initialize advanced gesture system
+            lifecycleScope.launch {
+                advancedGestureManager.initialize()
+            }
+            
+            // Initialize video enhancement engine
+            lifecycleScope.launch {
+                enhancementEngine.initialize(exoPlayer)
+            }
             
             // Create PlayerView
             playerView = PlayerView(this).apply {

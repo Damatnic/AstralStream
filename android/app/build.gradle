@@ -226,6 +226,16 @@ dependencies {
     // implementation 'com.google.firebase:firebase-auth-ktx'
     // implementation 'com.google.firebase:firebase-firestore-ktx'
     
+    // Google AI (Gemini) for subtitle generation
+    implementation 'com.google.ai.client.generativeai:generativeai:0.1.2'
+    
+    // ML Kit for language detection
+    implementation 'com.google.mlkit:language-id:17.0.4'
+    
+    // TensorFlow Lite for AI video enhancement
+    implementation 'org.tensorflow:tensorflow-lite:2.14.0'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.14.0'
+    
     // Google Cast SDK for Chromecast support
     implementation 'com.google.android.gms:play-services-cast:21.5.0'
     implementation 'com.google.android.gms:play-services-cast-framework:21.5.0'

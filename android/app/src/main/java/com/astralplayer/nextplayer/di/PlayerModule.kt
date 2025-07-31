@@ -9,6 +9,8 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.astralplayer.nextplayer.data.PlayerRepository
 import com.astralplayer.nextplayer.data.PlayerRepositoryImpl
+import com.astralplayer.nextplayer.data.repository.SubtitleRepository
+import com.astralplayer.nextplayer.data.repository.SubtitleRepositoryImpl
 import com.astralplayer.nextplayer.utils.CodecManager
 import dagger.Module
 import dagger.Provides
@@ -104,6 +106,14 @@ object PlayerModule {
         @ApplicationContext context: Context
     ): PlayerRepository {
         return PlayerRepositoryImpl(exoPlayer, context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSubtitleRepository(
+        @ApplicationContext context: Context
+    ): SubtitleRepository {
+        return SubtitleRepositoryImpl(context)
     }
     
     // Static methods for compatibility with existing code
