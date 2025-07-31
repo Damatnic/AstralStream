@@ -10,19 +10,27 @@ plugins {
 }
 
 android {
-    namespace = 'com.astralplayer.nextplayer'
+    namespace = 'com.astralplayer.astralstream'
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.astralplayer.nextplayer"
-        minSdk = 24
+        applicationId = "com.astralplayer.astralstream"
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        
+        // Enable multidex for large APK
+        multiDexEnabled = true
+        
+        // Optimization for video playback
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
         }
     }
 
@@ -31,29 +39,45 @@ android {
             minifyEnabled = true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // Optimization flags
+            zipAlignEnabled = true
+            debuggable = false
+            jniDebuggable = false
+            renderscriptDebuggable = false
         }
         debug {
-            matchingFallbacks = ['release']
+            minifyEnabled = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            debuggable = true
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
-        jvmTarget = '17'
+        jvmTarget = '1.8'
         freeCompilerArgs += [
             '-opt-in=kotlin.RequiresOptIn',
             '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
             '-opt-in=androidx.compose.material3.ExperimentalMaterial3Api',
-            '-opt-in=androidx.compose.animation.ExperimentalAnimationApi'
+            '-opt-in=androidx.compose.animation.ExperimentalAnimationApi',
+            '-opt-in=androidx.compose.foundation.ExperimentalFoundationApi',
+            '-opt-in=androidx.media3.common.util.UnstableApi'
         ]
     }
     
     kapt {
         correctErrorTypes = true
+        useBuildCache = true
+        
         arguments {
             arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+            arg("room.expandProjection", "true")
         }
     }
     java {
@@ -64,18 +88,31 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        viewBinding = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = '1.5.14'
+        kotlinCompilerExtensionVersion = '1.5.8'
     }
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += '/META-INF/gradle/incremental.annotation.processors'
+            excludes += '/META-INF/DEPENDENCIES'
+            excludes += '/META-INF/LICENSE'
+            excludes += '/META-INF/LICENSE.txt'
+            excludes += '/META-INF/license.txt'
+            excludes += '/META-INF/NOTICE'
+            excludes += '/META-INF/NOTICE.txt'
+            excludes += '/META-INF/notice.txt'
+            excludes += '/META-INF/ASL2.0'
+            excludes += '/META-INF/*.kotlin_module'
         }
     }
     lint {
         baseline = file("lint-baseline.xml")
         abortOnError = false
+        checkReleaseBuilds = false
+        disable 'MissingTranslation'
     }
     
     sourceSets {
@@ -89,9 +126,23 @@ android {
         }
     }
     
-    packagingOptions {
-        resources {
-            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/license.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/notice.txt', 'META-INF/*.kotlin_module']
+    // Configure for large video files
+    dexOptions {
+        javaMaxHeapSize = "4g"
+        preDexLibraries = true
+        maxProcessCount = 8
+    }
+    
+    // Enhanced build optimizations
+    bundle {
+        language {
+            enableSplit = false
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
         }
     }
 }
@@ -115,8 +166,15 @@ task printDependencies {
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.13.1'
-    // implementation 'com.jakewharton.timber:timber:5.0.1'
+    // Core Android dependencies
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.multidex:multidex:2.0.1'
+    
+    // Desugaring for API compatibility
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    
+    // Logging
+    implementation 'com.jakewharton.timber:timber:5.0.1'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
     implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.4'
     implementation 'androidx.activity:activity-compose:1.9.1'
