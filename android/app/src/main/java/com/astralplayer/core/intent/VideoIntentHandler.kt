@@ -2,64 +2,70 @@ package com.astralplayer.core.intent
 
 import android.content.Intent
 import android.net.Uri
-import android.webkit.MimeTypeMap
-import androidx.media3.common.MimeTypes
-import com.astralplayer.core.codec.CodecManager.StreamType
-import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
+import android.webkit.CookieManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.URLDecoder
 
-@Singleton
-class VideoIntentHandler @Inject constructor() {
+class VideoIntentHandler {
     
     data class VideoInfo(
         val uri: Uri,
-        val title: String,
-        val mimeType: String?,
-        val referrer: String?,
-        val userAgent: String?,
-        val headers: Map<String, String>,
-        val isStreaming: Boolean,
-        val streamType: StreamType,
-        val isAdultContent: Boolean,
-        val requiresSpecialHandling: Boolean
+        val originalUrl: String? = null,
+        val title: String? = null,
+        val referrer: String? = null,
+        val cookies: Map<String, String> = emptyMap(),
+        val headers: Map<String, String> = emptyMap(),
+        val isStreaming: Boolean = false,
+        val streamType: StreamType = StreamType.PROGRESSIVE,
+        val isAdultContent: Boolean = false,
+        val requiresExtraction: Boolean = false
     )
     
-    fun extractVideoInfo(intent: Intent): VideoInfo {
-        val uri = intent.data ?: throw IllegalArgumentException("No URI provided in intent")
+    enum class StreamType {
+        PROGRESSIVE, HLS, DASH, SMOOTH, RTMP, RTSP
+    }
+    
+    suspend fun extractVideoInfo(intent: Intent): VideoInfo = withContext(Dispatchers.IO) {
+        val uri = intent.data ?: intent.getParcelableExtra(Intent.EXTRA_STREAM) 
+            ?: throw IllegalArgumentException("No URI found in intent")
         
+        // Extract all metadata
+        val originalUrl = intent.getStringExtra("original_url") ?: uri.toString()
         val title = extractTitle(intent, uri)
-        val mimeType = extractMimeType(intent, uri)
         val referrer = extractReferrer(intent)
-        val userAgent = extractUserAgent(intent)
+        val cookies = extractCookies(intent, uri)
         val headers = extractHeaders(intent)
         
-        val isStreaming = isStreamingUrl(uri)
-        val streamType = determineStreamType(uri, mimeType)
+        // Detect if it's adult content
         val isAdultContent = detectAdultContent(uri, referrer)
-        val requiresSpecialHandling = requiresSpecialHandling(uri, headers)
         
-        Timber.d("Extracted video info: $title, streaming: $isStreaming, adult: $isAdultContent")
+        // Detect stream type
+        val streamType = detectStreamType(uri)
+        val isStreaming = streamType != StreamType.PROGRESSIVE
         
-        return VideoInfo(
+        // Check if needs extraction (embedded videos)
+        val requiresExtraction = needsExtraction(uri)
+        
+        VideoInfo(
             uri = uri,
+            originalUrl = originalUrl,
             title = title,
-            mimeType = mimeType,
             referrer = referrer,
-            userAgent = userAgent,
+            cookies = cookies,
             headers = headers,
             isStreaming = isStreaming,
             streamType = streamType,
             isAdultContent = isAdultContent,
-            requiresSpecialHandling = requiresSpecialHandling
+            requiresExtraction = requiresExtraction
         )
     }
     
-    private fun extractTitle(intent: Intent, uri: Uri): String {
-        // Try to get title from intent extras
+    private fun extractTitle(intent: Intent, uri: Uri): String? {
+        // Try intent extras first
         intent.getStringExtra(Intent.EXTRA_TITLE)?.let { return it }
-        intent.getStringExtra("android.intent.extra.TITLE")?.let { return it }
         intent.getStringExtra("title")?.let { return it }
+        intent.getStringExtra("android.intent.extra.TITLE")?.let { return it }
         
         // Extract from URI
         uri.lastPathSegment?.let { segment ->
@@ -68,123 +74,151 @@ class VideoIntentHandler @Inject constructor() {
         }
         
         // Extract from query parameters
-        uri.getQueryParameter("title")?.let { return it }
+        uri.getQueryParameter("title")?.let { return URLDecoder.decode(it, "UTF-8") }
         uri.getQueryParameter("v")?.let { return "Video $it" }
         
-        return "Unknown Video"
-    }
-    
-    private fun extractMimeType(intent: Intent, uri: Uri): String? {
-        // Try intent type first
-        intent.type?.let { return it }
-        
-        // Try to determine from URI
-        val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
-        if (extension.isNotEmpty()) {
-            MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)?.let { return it }
-        }
-        
-        // Common video extensions
-        return when (uri.toString().substringAfterLast('.').lowercase()) {
-            "mp4", "m4v" -> MimeTypes.VIDEO_MP4
-            "mkv" -> "video/x-matroska"
-            "avi" -> "video/x-msvideo"
-            "mov" -> "video/quicktime"
-            "wmv" -> "video/x-ms-wmv"
-            "flv" -> "video/x-flv"
-            "webm" -> MimeTypes.VIDEO_WEBM
-            "m3u8" -> MimeTypes.APPLICATION_M3U8
-            "mpd" -> MimeTypes.APPLICATION_MPD
-            else -> null
-        }
+        return null
     }
     
     private fun extractReferrer(intent: Intent): String? {
         return intent.getStringExtra("android.intent.extra.REFERRER")
             ?: intent.getStringExtra("referrer")
             ?: intent.getStringExtra("Referer")
+            ?: intent.getStringExtra("referer")
     }
     
-    private fun extractUserAgent(intent: Intent): String? {
-        return intent.getStringExtra("user-agent")
-            ?: intent.getStringExtra("User-Agent")
+    private fun extractCookies(intent: Intent, uri: Uri): Map<String, String> {
+        val cookies = mutableMapOf<String, String>()
+        
+        // Get cookies from intent extras
+        intent.getStringExtra("cookie")?.let {
+            cookies.putAll(parseCookieString(it))
+        }
+        
+        // Get cookies from CookieManager
+        CookieManager.getInstance().getCookie(uri.toString())?.let {
+            cookies.putAll(parseCookieString(it))
+        }
+        
+        // Check all intent extras for cookie-like data
+        intent.extras?.keySet()?.forEach { key ->
+            when {
+                key.contains("cookie", ignoreCase = true) ||
+                key.contains("session", ignoreCase = true) ||
+                key.contains("auth", ignoreCase = true) -> {
+                    intent.getStringExtra(key)?.let { value ->
+                        if (key.contains("cookie", ignoreCase = true)) {
+                            cookies.putAll(parseCookieString(value))
+                        } else {
+                            cookies[key] = value
+                        }
+                    }
+                }
+            }
+        }
+        
+        return cookies
     }
     
     private fun extractHeaders(intent: Intent): Map<String, String> {
         val headers = mutableMapOf<String, String>()
         
-        // Extract common headers from intent extras
-        intent.getStringExtra("cookie")?.let { headers["Cookie"] = it }
-        intent.getStringExtra("authorization")?.let { headers["Authorization"] = it }
-        extractUserAgent(intent)?.let { headers["User-Agent"] = it }
-        extractReferrer(intent)?.let { headers["Referer"] = it }
+        // Standard headers
+        headers["User-Agent"] = intent.getStringExtra("user_agent") 
+            ?: "Mozilla/5.0 (Linux; Android ${android.os.Build.VERSION.RELEASE}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
         
-        // Extract headers bundle if present
-        intent.getBundleExtra("headers")?.let { bundle ->
-            for (key in bundle.keySet()) {
-                bundle.getString(key)?.let { value ->
-                    headers[key] = value
-                }
+        intent.getStringExtra("referer")?.let { headers["Referer"] = it }
+        intent.getStringExtra("origin")?.let { headers["Origin"] = it }
+        
+        // Extract all header-like extras
+        intent.extras?.keySet()?.forEach { key ->
+            if (key.startsWith("http_", ignoreCase = true) || 
+                key.contains("header", ignoreCase = true)) {
+                intent.getStringExtra(key)?.let { headers[key] = it }
             }
         }
+        
+        // Add required headers for video streaming
+        headers["Accept"] = "video/webm,video/ogg,video/*;q=0.9,application/x-mpegURL,application/vnd.apple.mpegurl,application/dash+xml,*/*;q=0.8"
+        headers["Accept-Language"] = "en-US,en;q=0.9"
+        headers["Cache-Control"] = "no-cache"
+        headers["Connection"] = "keep-alive"
+        headers["Sec-Fetch-Dest"] = "video"
+        headers["Sec-Fetch-Mode"] = "no-cors"
+        headers["Sec-Fetch-Site"] = "same-origin"
         
         return headers
     }
     
-    private fun isStreamingUrl(uri: Uri): Boolean {
+    private fun detectStreamType(uri: Uri): StreamType {
         val uriString = uri.toString().lowercase()
+        val path = uri.path?.lowercase() ?: ""
         
         return when {
-            uriString.contains(".m3u8") -> true
-            uriString.contains(".mpd") -> true
-            uriString.contains("manifest") -> true
-            uri.scheme in listOf("rtsp", "rtmp", "mms") -> true
-            uriString.contains("livestream") -> true
-            uriString.contains("stream") && uriString.contains("http") -> true
-            else -> false
+            uriString.contains(".m3u8") || path.endsWith(".m3u8") -> StreamType.HLS
+            uriString.contains(".mpd") || path.endsWith(".mpd") -> StreamType.DASH
+            uriString.contains(".ism") || path.contains(".ism") -> StreamType.SMOOTH
+            uri.scheme == "rtmp" -> StreamType.RTMP
+            uri.scheme == "rtsp" -> StreamType.RTSP
+            uriString.contains("manifest") && uriString.contains("dash") -> StreamType.DASH
+            uriString.contains("manifest") && uriString.contains("hls") -> StreamType.HLS
+            uriString.contains("playlist") -> StreamType.HLS
+            else -> StreamType.PROGRESSIVE
         }
-    }
-    
-    private fun determineStreamType(uri: Uri, mimeType: String?): StreamType {
-        val uriString = uri.toString().lowercase()
-        
-        return StreamType(
-            isHLS = uriString.contains(".m3u8") || mimeType == MimeTypes.APPLICATION_M3U8,
-            isDASH = uriString.contains(".mpd") || mimeType == MimeTypes.APPLICATION_MPD,
-            isRTMP = uri.scheme == "rtmp",
-            isAdultContent = detectAdultContent(uri, null),
-            requiresSpecialHandling = requiresSpecialHandling(uri, emptyMap())
-        )
     }
     
     private fun detectAdultContent(uri: Uri, referrer: String?): Boolean {
-        val uriString = uri.toString().lowercase()
-        val referrerString = referrer?.lowercase() ?: ""
-        
-        val adultIndicators = listOf(
-            "adult", "xxx", "porn", "sex", "nsfw", "18+", "mature",
-            "xhamster", "pornhub", "xvideos", "redtube", "youporn",
-            "tube8", "xtube", "spankbang", "xnxx", "beeg"
+        val adultDomains = listOf(
+            "pornhub", "xvideos", "xhamster", "spankbang", "redtube",
+            "youporn", "tube8", "xnxx", "porn", "xxx", "adult", "beeg",
+            "xtube", "eporner", "xmovies", "chaturbate", "cam4",
+            "onlyfans", "manyvids", "clips4sale"
         )
         
-        return adultIndicators.any { indicator ->
-            uriString.contains(indicator) || referrerString.contains(indicator)
+        val urlString = uri.toString().lowercase()
+        val referrerString = referrer?.lowercase() ?: ""
+        val host = uri.host?.lowercase() ?: ""
+        
+        return adultDomains.any { domain ->
+            urlString.contains(domain) || 
+            referrerString.contains(domain) ||
+            host.contains(domain)
         }
     }
     
-    private fun requiresSpecialHandling(uri: Uri, headers: Map<String, String>): Boolean {
-        return when {
-            headers.containsKey("Authorization") -> true
-            headers.containsKey("Cookie") -> true
-            uri.userInfo != null -> true
-            uri.toString().contains("token") -> true
-            uri.toString().contains("auth") -> true
-            else -> false
+    private fun needsExtraction(uri: Uri): Boolean {
+        val path = uri.path?.lowercase() ?: ""
+        val query = uri.query?.lowercase() ?: ""
+        
+        // Direct video files don't need extraction
+        val directVideoExtensions = listOf(".mp4", ".m3u8", ".mpd", ".webm", ".mkv", ".avi", ".mov")
+        if (directVideoExtensions.any { path.endsWith(it) }) {
+            return false
         }
+        
+        // URLs that typically need extraction
+        return path.contains("/watch") || 
+               path.contains("/video/") ||
+               path.contains("/embed/") ||
+               path.contains("/player/") ||
+               path.contains("/view/") ||
+               query.contains("v=") ||
+               query.contains("video=") ||
+               query.contains("id=")
     }
     
-    fun createVideoUri(urlString: String, headers: Map<String, String> = emptyMap()): Uri {
-        return Uri.parse(urlString)
+    private fun parseCookieString(cookieString: String): Map<String, String> {
+        return cookieString.split(";")
+            .map { it.trim() }
+            .filter { it.contains("=") }
+            .associate {
+                val parts = it.split("=", limit = 2)
+                if (parts.size == 2) {
+                    parts[0].trim() to parts[1].trim()
+                } else {
+                    parts[0].trim() to ""
+                }
+            }
     }
     
     fun isVideoIntent(intent: Intent): Boolean {
@@ -196,8 +230,9 @@ class VideoIntentHandler @Inject constructor() {
                 when {
                     mimeType?.startsWith("video/") == true -> true
                     mimeType in listOf(
-                        MimeTypes.APPLICATION_M3U8,
-                        MimeTypes.APPLICATION_MPD,
+                        "application/x-mpegURL",
+                        "application/vnd.apple.mpegurl",
+                        "application/dash+xml",
                         "application/mp4"
                     ) -> true
                     uri?.let { isVideoUri(it) } == true -> true
@@ -206,9 +241,9 @@ class VideoIntentHandler @Inject constructor() {
             }
             Intent.ACTION_SEND -> {
                 intent.type?.startsWith("video/") == true ||
-                intent.type == "text/plain" && intent.getStringExtra(Intent.EXTRA_TEXT)?.let {
+                (intent.type == "text/plain" && intent.getStringExtra(Intent.EXTRA_TEXT)?.let {
                     isVideoUri(Uri.parse(it))
-                } == true
+                } == true)
             }
             else -> false
         }
@@ -218,10 +253,16 @@ class VideoIntentHandler @Inject constructor() {
         val path = uri.toString().lowercase()
         val videoExtensions = listOf(
             ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
-            ".m4v", ".3gp", ".3g2", ".m3u8", ".mpd"
+            ".m4v", ".3gp", ".3g2", ".m3u8", ".mpd", ".ts", ".m2ts"
+        )
+        
+        val videoKeywords = listOf(
+            "video", "watch", "play", "stream", "media", "player",
+            "embed", "view", "movie", "clip"
         )
         
         return videoExtensions.any { path.contains(it) } || 
+               videoKeywords.any { path.contains(it) } ||
                uri.scheme in listOf("rtsp", "rtmp", "mms")
     }
 }
