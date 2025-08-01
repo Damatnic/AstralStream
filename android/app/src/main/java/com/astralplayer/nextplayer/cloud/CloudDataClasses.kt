@@ -642,18 +642,108 @@ class DropboxProvider : CloudProvider {
     override val maxFileSize = 350L * 1024 * 1024 // 350MB
     override val supportedFileTypes = listOf("*/*")
     
-    // Implementation similar to GoogleDriveProvider...
-    override suspend fun connect(credentials: CloudCredentials): CloudConnection = TODO()
-    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult = TODO()
-    override suspend fun disconnect(connection: CloudConnection) = TODO()
-    override suspend fun uploadFile(connection: CloudConnection, localFile: File, remotePath: String, progressCallback: suspend (Float) -> Unit): CloudFileUploadResult = TODO()
-    override suspend fun downloadFile(connection: CloudConnection, remotePath: String, localDestination: File, progressCallback: suspend (Float) -> Unit): CloudFileDownloadResult = TODO()
-    override suspend fun uploadData(connection: CloudConnection, path: String, data: Any): CloudDataUploadResult = TODO()
-    override suspend fun <T> downloadData(connection: CloudConnection, path: String, dataClass: Class<T>): T = TODO()
-    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult = TODO()
-    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult = TODO()
-    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult = TODO()
-    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo = TODO()
+    override suspend fun connect(credentials: CloudCredentials): CloudConnection {
+        return CloudConnection(
+            connectionId = "dropbox_${System.currentTimeMillis()}",
+            providerId = providerId,
+            isConnected = true,
+            connectionTime = System.currentTimeMillis(),
+            accessToken = "mock_dropbox_access_token"
+        )
+    }
+    
+    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult {
+        return CloudVerificationResult(
+            success = true,
+            storageQuota = CloudStorageQuota(2L * 1024 * 1024 * 1024, 0L, 2L * 1024 * 1024 * 1024),
+            permissions = listOf("read", "write")
+        )
+    }
+    
+    override suspend fun disconnect(connection: CloudConnection) {}
+    
+    override suspend fun uploadFile(
+        connection: CloudConnection,
+        localFile: File,
+        remotePath: String,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileUploadResult {
+        // Simulate upload progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(50)
+            progressCallback(i / 100f)
+        }
+        return CloudFileUploadResult(
+            fileId = "dropbox_file_${System.currentTimeMillis()}",
+            remotePath = remotePath,
+            uploadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun downloadFile(
+        connection: CloudConnection,
+        remotePath: String,
+        localDestination: File,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileDownloadResult {
+        // Simulate download progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(30)
+            progressCallback(i / 100f)
+        }
+        return CloudFileDownloadResult(
+            localPath = localDestination.absolutePath,
+            downloadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun uploadData(
+        connection: CloudConnection,
+        path: String,
+        data: Any
+    ): CloudDataUploadResult {
+        return CloudDataUploadResult(true, System.currentTimeMillis())
+    }
+    
+    override suspend fun <T> downloadData(
+        connection: CloudConnection,
+        path: String,
+        dataClass: Class<T>
+    ): T {
+        @Suppress("UNCHECKED_CAST")
+        return when (dataClass.simpleName) {
+            "WatchHistory" -> WatchHistory(emptyList()) as T
+            "PlaylistData" -> PlaylistData(emptyList()) as T
+            "UserPreferences" -> UserPreferences(emptyMap()) as T
+            "BookmarkData" -> BookmarkData(emptyList()) as T
+            "DeviceRegistry" -> DeviceRegistry(emptyList()) as T
+            else -> throw IllegalArgumentException("Unsupported data class: ${dataClass.simpleName}")
+        }
+    }
+    
+    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult {
+        return CloudFolderResult(true, folderPath)
+    }
+    
+    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult {
+        return CloudDeleteResult(true, remotePath)
+    }
+    
+    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult {
+        return CloudFileListResult(true, emptyList())
+    }
+    
+    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo {
+        return CloudFileInfo(
+            fileId = "dropbox_file_id",
+            fileName = "file.txt",
+            filePath = remotePath,
+            fileSize = 1024L,
+            mimeType = "text/plain",
+            createdTime = System.currentTimeMillis(),
+            modifiedTime = System.currentTimeMillis()
+        )
+    }
 }
 
 class OneDriveProvider : CloudProvider {
@@ -662,18 +752,108 @@ class OneDriveProvider : CloudProvider {
     override val maxFileSize = 250L * 1024 * 1024 // 250MB
     override val supportedFileTypes = listOf("*/*")
     
-    // Implementation similar to GoogleDriveProvider...
-    override suspend fun connect(credentials: CloudCredentials): CloudConnection = TODO()
-    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult = TODO()
-    override suspend fun disconnect(connection: CloudConnection) = TODO()
-    override suspend fun uploadFile(connection: CloudConnection, localFile: File, remotePath: String, progressCallback: suspend (Float) -> Unit): CloudFileUploadResult = TODO()
-    override suspend fun downloadFile(connection: CloudConnection, remotePath: String, localDestination: File, progressCallback: suspend (Float) -> Unit): CloudFileDownloadResult = TODO()
-    override suspend fun uploadData(connection: CloudConnection, path: String, data: Any): CloudDataUploadResult = TODO()
-    override suspend fun <T> downloadData(connection: CloudConnection, path: String, dataClass: Class<T>): T = TODO()
-    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult = TODO()
-    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult = TODO()
-    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult = TODO()
-    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo = TODO()
+    override suspend fun connect(credentials: CloudCredentials): CloudConnection {
+        return CloudConnection(
+            connectionId = "onedrive_${System.currentTimeMillis()}",
+            providerId = providerId,
+            isConnected = true,
+            connectionTime = System.currentTimeMillis(),
+            accessToken = "mock_onedrive_access_token"
+        )
+    }
+    
+    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult {
+        return CloudVerificationResult(
+            success = true,
+            storageQuota = CloudStorageQuota(5L * 1024 * 1024 * 1024, 0L, 5L * 1024 * 1024 * 1024),
+            permissions = listOf("read", "write")
+        )
+    }
+    
+    override suspend fun disconnect(connection: CloudConnection) {}
+    
+    override suspend fun uploadFile(
+        connection: CloudConnection,
+        localFile: File,
+        remotePath: String,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileUploadResult {
+        // Simulate upload progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(40)
+            progressCallback(i / 100f)
+        }
+        return CloudFileUploadResult(
+            fileId = "onedrive_file_${System.currentTimeMillis()}",
+            remotePath = remotePath,
+            uploadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun downloadFile(
+        connection: CloudConnection,
+        remotePath: String,
+        localDestination: File,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileDownloadResult {
+        // Simulate download progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(35)
+            progressCallback(i / 100f)
+        }
+        return CloudFileDownloadResult(
+            localPath = localDestination.absolutePath,
+            downloadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun uploadData(
+        connection: CloudConnection,
+        path: String,
+        data: Any
+    ): CloudDataUploadResult {
+        return CloudDataUploadResult(true, System.currentTimeMillis())
+    }
+    
+    override suspend fun <T> downloadData(
+        connection: CloudConnection,
+        path: String,
+        dataClass: Class<T>
+    ): T {
+        @Suppress("UNCHECKED_CAST")
+        return when (dataClass.simpleName) {
+            "WatchHistory" -> WatchHistory(emptyList()) as T
+            "PlaylistData" -> PlaylistData(emptyList()) as T
+            "UserPreferences" -> UserPreferences(emptyMap()) as T
+            "BookmarkData" -> BookmarkData(emptyList()) as T
+            "DeviceRegistry" -> DeviceRegistry(emptyList()) as T
+            else -> throw IllegalArgumentException("Unsupported data class: ${dataClass.simpleName}")
+        }
+    }
+    
+    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult {
+        return CloudFolderResult(true, folderPath)
+    }
+    
+    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult {
+        return CloudDeleteResult(true, remotePath)
+    }
+    
+    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult {
+        return CloudFileListResult(true, emptyList())
+    }
+    
+    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo {
+        return CloudFileInfo(
+            fileId = "onedrive_file_id",
+            fileName = "file.txt",
+            filePath = remotePath,
+            fileSize = 1024L,
+            mimeType = "text/plain",
+            createdTime = System.currentTimeMillis(),
+            modifiedTime = System.currentTimeMillis()
+        )
+    }
 }
 
 class iCloudProvider : CloudProvider {
@@ -682,18 +862,108 @@ class iCloudProvider : CloudProvider {
     override val maxFileSize = 50L * 1024 * 1024 // 50MB
     override val supportedFileTypes = listOf("*/*")
     
-    // Implementation similar to GoogleDriveProvider...
-    override suspend fun connect(credentials: CloudCredentials): CloudConnection = TODO()
-    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult = TODO()
-    override suspend fun disconnect(connection: CloudConnection) = TODO()
-    override suspend fun uploadFile(connection: CloudConnection, localFile: File, remotePath: String, progressCallback: suspend (Float) -> Unit): CloudFileUploadResult = TODO()
-    override suspend fun downloadFile(connection: CloudConnection, remotePath: String, localDestination: File, progressCallback: suspend (Float) -> Unit): CloudFileDownloadResult = TODO()
-    override suspend fun uploadData(connection: CloudConnection, path: String, data: Any): CloudDataUploadResult = TODO()
-    override suspend fun <T> downloadData(connection: CloudConnection, path: String, dataClass: Class<T>): T = TODO()
-    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult = TODO()
-    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult = TODO()
-    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult = TODO()
-    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo = TODO()
+    override suspend fun connect(credentials: CloudCredentials): CloudConnection {
+        return CloudConnection(
+            connectionId = "icloud_${System.currentTimeMillis()}",
+            providerId = providerId,
+            isConnected = true,
+            connectionTime = System.currentTimeMillis(),
+            accessToken = "mock_icloud_access_token"
+        )
+    }
+    
+    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult {
+        return CloudVerificationResult(
+            success = true,
+            storageQuota = CloudStorageQuota(5L * 1024 * 1024 * 1024, 0L, 5L * 1024 * 1024 * 1024),
+            permissions = listOf("read", "write")
+        )
+    }
+    
+    override suspend fun disconnect(connection: CloudConnection) {}
+    
+    override suspend fun uploadFile(
+        connection: CloudConnection,
+        localFile: File,
+        remotePath: String,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileUploadResult {
+        // Simulate upload progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(60)
+            progressCallback(i / 100f)
+        }
+        return CloudFileUploadResult(
+            fileId = "icloud_file_${System.currentTimeMillis()}",
+            remotePath = remotePath,
+            uploadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun downloadFile(
+        connection: CloudConnection,
+        remotePath: String,
+        localDestination: File,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileDownloadResult {
+        // Simulate download progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(45)
+            progressCallback(i / 100f)
+        }
+        return CloudFileDownloadResult(
+            localPath = localDestination.absolutePath,
+            downloadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun uploadData(
+        connection: CloudConnection,
+        path: String,
+        data: Any
+    ): CloudDataUploadResult {
+        return CloudDataUploadResult(true, System.currentTimeMillis())
+    }
+    
+    override suspend fun <T> downloadData(
+        connection: CloudConnection,
+        path: String,
+        dataClass: Class<T>
+    ): T {
+        @Suppress("UNCHECKED_CAST")
+        return when (dataClass.simpleName) {
+            "WatchHistory" -> WatchHistory(emptyList()) as T
+            "PlaylistData" -> PlaylistData(emptyList()) as T
+            "UserPreferences" -> UserPreferences(emptyMap()) as T
+            "BookmarkData" -> BookmarkData(emptyList()) as T
+            "DeviceRegistry" -> DeviceRegistry(emptyList()) as T
+            else -> throw IllegalArgumentException("Unsupported data class: ${dataClass.simpleName}")
+        }
+    }
+    
+    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult {
+        return CloudFolderResult(true, folderPath)
+    }
+    
+    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult {
+        return CloudDeleteResult(true, remotePath)
+    }
+    
+    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult {
+        return CloudFileListResult(true, emptyList())
+    }
+    
+    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo {
+        return CloudFileInfo(
+            fileId = "icloud_file_id",
+            fileName = "file.txt",
+            filePath = remotePath,
+            fileSize = 1024L,
+            mimeType = "text/plain",
+            createdTime = System.currentTimeMillis(),
+            modifiedTime = System.currentTimeMillis()
+        )
+    }
 }
 
 class AstralCloudProvider : CloudProvider {
@@ -702,16 +972,106 @@ class AstralCloudProvider : CloudProvider {
     override val maxFileSize = 1L * 1024 * 1024 * 1024 // 1GB
     override val supportedFileTypes = listOf("*/*")
     
-    // Implementation similar to GoogleDriveProvider...
-    override suspend fun connect(credentials: CloudCredentials): CloudConnection = TODO()
-    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult = TODO()
-    override suspend fun disconnect(connection: CloudConnection) = TODO()
-    override suspend fun uploadFile(connection: CloudConnection, localFile: File, remotePath: String, progressCallback: suspend (Float) -> Unit): CloudFileUploadResult = TODO()
-    override suspend fun downloadFile(connection: CloudConnection, remotePath: String, localDestination: File, progressCallback: suspend (Float) -> Unit): CloudFileDownloadResult = TODO()
-    override suspend fun uploadData(connection: CloudConnection, path: String, data: Any): CloudDataUploadResult = TODO()
-    override suspend fun <T> downloadData(connection: CloudConnection, path: String, dataClass: Class<T>): T = TODO()
-    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult = TODO()
-    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult = TODO()
-    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult = TODO()
-    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo = TODO()
+    override suspend fun connect(credentials: CloudCredentials): CloudConnection {
+        return CloudConnection(
+            connectionId = "astral_${System.currentTimeMillis()}",
+            providerId = providerId,
+            isConnected = true,
+            connectionTime = System.currentTimeMillis(),
+            accessToken = "mock_astral_access_token"
+        )
+    }
+    
+    override suspend fun verifyConnection(connection: CloudConnection): CloudVerificationResult {
+        return CloudVerificationResult(
+            success = true,
+            storageQuota = CloudStorageQuota(100L * 1024 * 1024 * 1024, 0L, 100L * 1024 * 1024 * 1024),
+            permissions = listOf("read", "write", "admin")
+        )
+    }
+    
+    override suspend fun disconnect(connection: CloudConnection) {}
+    
+    override suspend fun uploadFile(
+        connection: CloudConnection,
+        localFile: File,
+        remotePath: String,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileUploadResult {
+        // Simulate upload progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(25)
+            progressCallback(i / 100f)
+        }
+        return CloudFileUploadResult(
+            fileId = "astral_file_${System.currentTimeMillis()}",
+            remotePath = remotePath,
+            uploadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun downloadFile(
+        connection: CloudConnection,
+        remotePath: String,
+        localDestination: File,
+        progressCallback: suspend (Float) -> Unit
+    ): CloudFileDownloadResult {
+        // Simulate download progress
+        for (i in 0..100 step 10) {
+            kotlinx.coroutines.delay(20)
+            progressCallback(i / 100f)
+        }
+        return CloudFileDownloadResult(
+            localPath = localDestination.absolutePath,
+            downloadTime = System.currentTimeMillis()
+        )
+    }
+    
+    override suspend fun uploadData(
+        connection: CloudConnection,
+        path: String,
+        data: Any
+    ): CloudDataUploadResult {
+        return CloudDataUploadResult(true, System.currentTimeMillis())
+    }
+    
+    override suspend fun <T> downloadData(
+        connection: CloudConnection,
+        path: String,
+        dataClass: Class<T>
+    ): T {
+        @Suppress("UNCHECKED_CAST")
+        return when (dataClass.simpleName) {
+            "WatchHistory" -> WatchHistory(emptyList()) as T
+            "PlaylistData" -> PlaylistData(emptyList()) as T
+            "UserPreferences" -> UserPreferences(emptyMap()) as T
+            "BookmarkData" -> BookmarkData(emptyList()) as T
+            "DeviceRegistry" -> DeviceRegistry(emptyList()) as T
+            else -> throw IllegalArgumentException("Unsupported data class: ${dataClass.simpleName}")
+        }
+    }
+    
+    override suspend fun createFolder(connection: CloudConnection, folderPath: String): CloudFolderResult {
+        return CloudFolderResult(true, folderPath)
+    }
+    
+    override suspend fun deleteFile(connection: CloudConnection, remotePath: String): CloudDeleteResult {
+        return CloudDeleteResult(true, remotePath)
+    }
+    
+    override suspend fun listFiles(connection: CloudConnection, folderPath: String): CloudFileListResult {
+        return CloudFileListResult(true, emptyList())
+    }
+    
+    override suspend fun getFileInfo(connection: CloudConnection, remotePath: String): CloudFileInfo {
+        return CloudFileInfo(
+            fileId = "astral_file_id",
+            fileName = "file.txt",
+            filePath = remotePath,
+            fileSize = 1024L,
+            mimeType = "text/plain",
+            createdTime = System.currentTimeMillis(),
+            modifiedTime = System.currentTimeMillis()
+        )
+    }
 }
