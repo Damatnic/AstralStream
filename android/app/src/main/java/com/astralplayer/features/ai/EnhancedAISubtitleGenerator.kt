@@ -16,13 +16,17 @@ import timber.log.Timber
 import com.astralplayer.core.config.ApiKeyManager
 import com.astralplayer.core.audio.AudioExtractorEngine
 import com.astralplayer.features.ai.SubtitleFallbackEngine
+import com.astralplayer.core.cache.SubtitleCacheManager
+import com.astralplayer.astralstream.data.entity.SubtitleFormat
+import com.astralplayer.astralstream.data.entity.SubtitleSource
 
 @Singleton
 class EnhancedAISubtitleGenerator @Inject constructor(
     private val context: Context,
     private val apiKeyManager: ApiKeyManager,
     private val audioExtractor: AudioExtractorEngine,
-    private val fallbackEngine: SubtitleFallbackEngine
+    private val fallbackEngine: SubtitleFallbackEngine,
+    private val subtitleCacheManager: SubtitleCacheManager
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)
@@ -66,6 +70,44 @@ class EnhancedAISubtitleGenerator @Inject constructor(
         scope.launch {
             try {
                 _state.update { it.copy(isGenerating = true, error = null, progress = 0f) }
+                
+                // Generate a unique video ID for caching
+                val videoId = generateVideoId(videoUri)
+                
+                // Check cache first
+                Timber.d("Checking cache for video: $videoId, language: $targetLanguage")
+                val cachedResult = subtitleCacheManager.getSubtitle(videoId, targetLanguage)
+                
+                if (cachedResult.isSuccess) {
+                    Timber.d("Found cached subtitles for $videoId:$targetLanguage")
+                    val cachedContent = cachedResult.getOrNull() ?: ""
+                    
+                    // Parse cached SRT content and emit subtitles
+                    val cachedSubtitles = parseSrtContent(cachedContent)
+                    cachedSubtitles.forEach { subtitle ->
+                        onSubtitleReady(subtitle)
+                        _state.update { state ->
+                            state.copy(
+                                subtitles = state.subtitles + subtitle,
+                                progress = cachedSubtitles.indexOf(subtitle).toFloat() / cachedSubtitles.size,
+                                aiService = "cache"
+                            )
+                        }
+                        delay(50) // Small delay for smooth UI updates
+                    }
+                    
+                    _state.update { 
+                        it.copy(
+                            isGenerating = false, 
+                            isComplete = true, 
+                            progress = 1f,
+                            aiService = "cache (cached)"
+                        ) 
+                    }
+                    return@launch
+                }
+                
+                Timber.d("No cached subtitles found, generating new ones")
                 
                 // Check available API keys
                 val apiKeys = apiKeyManager.getApiKeys()
@@ -133,6 +175,31 @@ class EnhancedAISubtitleGenerator @Inject constructor(
                     )
                     onSubtitleReady(fallbackSubtitle)
                 }
+            }
+            
+            // Cache the generated subtitles
+            val videoId = generateVideoId(videoUri)
+            val videoTitle = extractVideoTitle(videoUri) ?: "Unknown Video"
+            val srtContent = convertSubtitlesToSrt(_state.value.subtitles)
+            val confidence = if (_state.value.subtitles.isNotEmpty()) {
+                _state.value.subtitles.map { it.confidence }.average().toFloat()
+            } else 0.0f
+            
+            if (srtContent.isNotBlank()) {
+                subtitleCacheManager.cacheSubtitle(
+                    videoId = videoId,
+                    videoUrl = videoUri,
+                    videoTitle = videoTitle,
+                    language = targetLanguage,
+                    languageCode = targetLanguage,
+                    content = srtContent,
+                    format = SubtitleFormat.SRT,
+                    source = SubtitleSource.AI_GENERATED,
+                    confidence = confidence,
+                    providerName = service,
+                    processingTime = System.currentTimeMillis() - _state.value.run { 0L }
+                )
+                Timber.d("Cached AI-generated subtitles for $videoId:$targetLanguage")
             }
             
             _state.update { it.copy(isGenerating = false, isComplete = true, progress = 1f) }
@@ -616,5 +683,102 @@ class EnhancedAISubtitleGenerator @Inject constructor(
     fun cleanup() {
         scope.cancel()
         audioExtractor.cleanupAudioFiles()
+    }
+    
+    /**
+     * Generate a unique video ID from URI for caching
+     */
+    private fun generateVideoId(videoUri: String): String {
+        return try {
+            val uri = android.net.Uri.parse(videoUri)
+            val path = uri.path ?: videoUri
+            val lastModified = if (path.startsWith("/")) {
+                // Local file - use file modification time if available
+                try {
+                    java.io.File(path).lastModified().toString()
+                } catch (e: Exception) {
+                    "0"
+                }
+            } else {
+                // Network URI - use the URI itself
+                videoUri.hashCode().toString()
+            }
+            
+            // Create hash from path + last modified
+            val hashInput = "$path:$lastModified"
+            java.security.MessageDigest.getInstance("MD5")
+                .digest(hashInput.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to generate video ID, using hash of URI")
+            videoUri.hashCode().toString()
+        }
+    }
+    
+    /**
+     * Parse SRT content into SubtitleEntry objects
+     */
+    private fun parseSrtContent(srtContent: String): List<SubtitleEntry> {
+        val subtitles = mutableListOf<SubtitleEntry>()
+        val entries = srtContent.split("\n\n").filter { it.trim().isNotEmpty() }
+        
+        entries.forEach { entry ->
+            try {
+                val lines = entry.trim().split("\n")
+                if (lines.size >= 3) {
+                    val id = lines[0].toIntOrNull() ?: 0
+                    val timeLine = lines[1]
+                    val text = lines.drop(2).joinToString("\n")
+                    
+                    // Parse time format: 00:01:23,456 --> 00:01:25,789
+                    val timePattern = """(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})""".toRegex()
+                    val matchResult = timePattern.find(timeLine)
+                    
+                    matchResult?.let { match ->
+                        val (h1, m1, s1, ms1, h2, m2, s2, ms2) = match.destructured
+                        val startTime = h1.toLong() * 3600000 + m1.toLong() * 60000 + s1.toLong() * 1000 + ms1.toLong()
+                        val endTime = h2.toLong() * 3600000 + m2.toLong() * 60000 + s2.toLong() * 1000 + ms2.toLong()
+                        
+                        subtitles.add(
+                            SubtitleEntry(
+                                id = id,
+                                startTime = startTime,
+                                endTime = endTime,
+                                text = text,
+                                confidence = 1.0f // Cached subtitles are considered fully confident
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to parse SRT entry: $entry")
+            }
+        }
+        
+        return subtitles.sortedBy { it.startTime }
+    }
+    
+    /**
+     * Convert SubtitleEntry objects to SRT format
+     */
+    private fun convertSubtitlesToSrt(subtitles: List<SubtitleEntry>): String {
+        return subtitles.sortedBy { it.startTime }.mapIndexed { index, subtitle ->
+            val startTime = formatSrtTime(subtitle.startTime)
+            val endTime = formatSrtTime(subtitle.endTime)
+            
+            "${index + 1}\n$startTime --> $endTime\n${subtitle.text}\n"
+        }.joinToString("\n")
+    }
+    
+    /**
+     * Format milliseconds to SRT time format (HH:MM:SS,mmm)
+     */
+    private fun formatSrtTime(milliseconds: Long): String {
+        val hours = milliseconds / 3600000
+        val minutes = (milliseconds % 3600000) / 60000
+        val seconds = (milliseconds % 60000) / 1000
+        val ms = milliseconds % 1000
+        
+        return String.format("%02d:%02d:%02d,%03d", hours, minutes, seconds, ms)
     }
 }
