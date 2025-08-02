@@ -93,6 +93,28 @@ dependencies {
     // Timber
     implementation("com.jakewharton.timber:timber:5.0.1")
     
+    // Media3/ExoPlayer
+    implementation("androidx.media3:media3-exoplayer:1.2.0")
+    implementation("androidx.media3:media3-ui:1.2.0")
+    implementation("androidx.media3:media3-common:1.2.0")
+    implementation("androidx.media3:media3-session:1.2.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.2.0")
+    implementation("androidx.media3:media3-exoplayer-dash:1.2.0")
+    implementation("androidx.media3:media3-datasource-okhttp:1.2.0")
+    implementation("androidx.media3:media3-database:1.2.0")
+    
+    // AI/ML for subtitles
+    implementation("com.google.mlkit:speech-recognition:16.0.0")
+    
+    // FFmpeg for audio extraction
+    implementation("com.arthenica:mobile-ffmpeg-full:4.4.LTS")
+    
+    // OkHttp for better streaming
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Gson for JSON processing
+    implementation("com.google.code.gson:gson:2.10.1")
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
