@@ -1,11 +1,14 @@
 package com.astralstream.nextplayer.di
 
 import android.content.Context
+import com.astralstream.nextplayer.ai.SpeechRecognitionEngine
+import com.astralstream.nextplayer.ai.SubtitleGenerator
 import com.astralstream.nextplayer.analytics.AnalyticsDashboardEngine
 import com.astralstream.nextplayer.cache.SubtitleCacheManager
 import com.astralstream.nextplayer.community.CommunityRepository
 import com.astralstream.nextplayer.community.PlaylistSharingService
 import com.astralstream.nextplayer.database.AppDatabase
+import com.astralstream.nextplayer.feature.player.enhancedplayer.EnhancedVideoPlayer
 import com.astralstream.nextplayer.feature.player.gestures.AdvancedGestureManager
 import com.astralstream.nextplayer.network.CommunityApiService
 import com.astralstream.nextplayer.security.EncryptionManager
@@ -103,5 +106,33 @@ object AppModule {
     @Singleton
     fun provideAnalyticsDashboardEngine(): AnalyticsDashboardEngine {
         return AnalyticsDashboardEngine()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSpeechRecognitionEngine(
+        @ApplicationContext context: Context
+    ): SpeechRecognitionEngine {
+        return SpeechRecognitionEngine(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSubtitleGenerator(
+        @ApplicationContext context: Context,
+        speechRecognizer: SpeechRecognitionEngine
+    ): SubtitleGenerator {
+        return SubtitleGenerator(context, speechRecognizer)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideEnhancedVideoPlayer(
+        @ApplicationContext context: Context,
+        subtitleGenerator: SubtitleGenerator,
+        subtitleCacheManager: SubtitleCacheManager,
+        videoCache: androidx.media3.datasource.cache.SimpleCache
+    ): EnhancedVideoPlayer {
+        return EnhancedVideoPlayer(context, subtitleGenerator, subtitleCacheManager, videoCache)
     }
 }

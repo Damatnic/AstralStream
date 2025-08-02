@@ -2,9 +2,13 @@ package com.astralstream.nextplayer.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import android.net.Uri
+import com.astralstream.nextplayer.feature.player.ui.VideoPlayerScreen
 import com.astralstream.nextplayer.ui.screens.AnalyticsDashboardScreen
 import com.astralstream.nextplayer.ui.screens.CommunityScreen
 import com.astralstream.nextplayer.ui.screens.GestureCustomizationScreen
@@ -27,6 +31,24 @@ fun AstralStreamNavHost(
         composable(Routes.PLAYER) { backStackEntry ->
             val videoId = backStackEntry.arguments?.getString("videoId") ?: ""
             // PlayerScreen(videoId = videoId)
+        }
+        
+        // Enhanced Video Player
+        composable(
+            route = Routes.VIDEO_PLAYER,
+            arguments = listOf(
+                navArgument("videoUri") { type = NavType.StringType },
+                navArgument("videoTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val videoUri = backStackEntry.arguments?.getString("videoUri") ?: ""
+            val videoTitle = backStackEntry.arguments?.getString("videoTitle") ?: ""
+            
+            VideoPlayerScreen(
+                videoUri = Uri.decode(videoUri),
+                videoTitle = Uri.decode(videoTitle),
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         
         composable(Routes.SETTINGS) {

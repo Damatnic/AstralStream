@@ -4,6 +4,7 @@ object Routes {
     // Main routes
     const val HOME = "home"
     const val PLAYER = "player/{videoId}"
+    const val VIDEO_PLAYER = "video_player/{videoUri}/{videoTitle}"
     const val SETTINGS = "settings"
     
     // New feature routes
@@ -18,5 +19,6 @@ object Routes {
     
     // Helper functions
     fun player(videoId: String) = "player/$videoId"
+    fun videoPlayer(videoUri: String, videoTitle: String) = "video_player/${android.net.Uri.encode(videoUri)}/${android.net.Uri.encode(videoTitle)}"
     fun userProfile(userId: String) = "user_profile/$userId"
 }
